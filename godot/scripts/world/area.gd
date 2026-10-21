@@ -100,7 +100,7 @@ func piece(kit: String, name: String, x: float, z: float, ry := 0.0, s := 1.0, r
 	m.scale = Vector3.ONE * s
 	_layout.add_child(m)
 	if r > 0.0:
-		blocker(x, z, r * s)
+		blocker(x, z, r * s, maxf(m.mesh.get_aabb().end.y * s, 1.0))
 	return m
 
 ## Many copies of one piece, drawn together: [[x, z, ry, s], ...]. r: blocking radius per unit of scale.
@@ -122,7 +122,7 @@ func scatter(kit: String, name: String, list: Array, r := 0.0) -> void:
 	inst.multimesh = mm
 	_layout.add_child(inst)
 
-## A round thing the hero walks around.
+## A round thing the hero walks around, as tall as the thing (so the camera doesn't pass through roofs).
 func blocker(x: float, z: float, r: float, h := 3.0) -> void:
 	var body := StaticBody3D.new()
 	body.collision_layer = WORLD_LAYER
@@ -138,11 +138,15 @@ func blocker(x: float, z: float, r: float, h := 3.0) -> void:
 
 ## An animated person or creature. face: yaw (front -Z). hide: prop names to hide.
 func actor(model: String, x: float, z: float, face: float, clip: String, scale := 1.12, hide: Array = [], label_text := "", y := 0.0) -> Node3D:
-	var a: Node3D = Kit.character(model).instantiate()
+	# the Blender models face +Z: turn the model round inside a holder that faces -Z
+	var a := Node3D.new()
 	a.name = model
 	a.position = Vector3(x, y, z)
 	a.rotation.y = face
-	a.scale = Vector3.ONE * scale
+	var m: Node3D = Kit.character(model).instantiate()
+	m.rotation.y = PI
+	m.scale = Vector3.ONE * scale
+	a.add_child(m)
 	_layout.add_child(a)
 	for n in hide:
 		var o := a.find_child(n, true, false)

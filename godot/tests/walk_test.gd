@@ -53,14 +53,30 @@ func _run() -> void:
 	var z0 := hero.position.z
 	await hold("move_forward", 1.0)
 	check(hero.position.z < z0 - 4.0, "walks forward (z %.2f → %.2f)" % [z0, hero.position.z])
+	# the model's front is +Z in its own space (tools/facing.gd measures it from the feet)
+	var front := hero.model.global_basis.z.normalized()
+	check(front.dot(Vector3(0, 0, -1)) > 0.9, "faces the way she walks, not backwards (front %s)" % front)
+	check(main.cam.cam.global_position.z > hero.position.z + 2.0, "camera stays behind her")
 	check(hero.anim.current_animation == "Run", "runs while moving (%s)" % hero.anim.current_animation)
 	await frames(30)
 	check(hero.anim.current_animation == "Idle", "idles when stopped (%s)" % hero.anim.current_animation)
 
 	# strafe right: she turns to face east (character yaw -PI/2)
 	await hold("move_right", 0.8)
+	var side_front := hero.model.global_basis.z.normalized()
+	var cam_right := Vector3(cos(main.cam.yaw), 0, -sin(main.cam.yaw))
+	check(side_front.dot(cam_right) > 0.9, "faces right when walking right")
 	var want := main.cam.yaw - PI / 2   # right of the camera
 	check(absf(angle_difference(hero.yaw, want)) < 0.35, "turns to face the way she goes (yaw %.2f, camera-right %.2f)" % [hero.yaw, want])
+
+	# walking toward the camera: she turns to face it, and the camera doesn't swing round
+	main.cam._since_look = 99.0
+	var yaw_before := main.cam.yaw
+	await hold("move_back", 2.0)
+	check(absf(angle_difference(main.cam.yaw, yaw_before)) < 0.05, "camera holds still when she runs toward it (moved %.2f)" % angle_difference(main.cam.yaw, yaw_before))
+	var back_front := hero.model.global_basis.z.normalized()
+	var to_cam := Vector3(sin(main.cam.yaw), 0, cos(main.cam.yaw))
+	check(back_front.dot(to_cam) > 0.9, "faces the camera when walking toward it")
 
 	# a house stops her: the round house at 70°, 17 m (radius 2.9)
 	var hx := cos(deg_to_rad(70)) * 17
@@ -115,11 +131,17 @@ func _run() -> void:
 		if a.begins_with("shot="):
 			shot = a.substr(5)
 	if shot != "":
-		hero.place({ "x": 0.0, "z": 6.0, "face": 0.0 })
+		hero.place({ "x": 0.0, "z": 12.0, "face": 0.0 })
 		main.cam.snap_behind()
-		await frames(90)
-		var img := root.get_texture().get_image()
-		img.save_png(shot)
+		Input.action_press("move_forward")
+		await settle(4)
+		root.get_texture().get_image().save_png(shot.replace(".png", "_back.png"))
+		Input.action_release("move_forward")
+		main.cam.yaw += PI
+		main.cam._since_look = 0.0
+		main.cam.distance = 4.0
+		await settle(4)
+		root.get_texture().get_image().save_png(shot.replace(".png", "_front.png"))
 		print("saved ", shot)
 	print("\n%d passed, %d failed" % [passed, failed])
 	quit(1 if failed else 0)

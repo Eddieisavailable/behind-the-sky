@@ -94,3 +94,10 @@ func _set_paused(on: bool) -> void:
 	hud.show_pause(on)
 	if on:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif not hud.touch_mode:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+## Pause when the window loses focus or the phone app goes to the background.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and hud and not get_tree().paused:
+		_set_paused(true)

@@ -64,9 +64,13 @@ func _process(dt: float) -> void:
 	if stick.length() > 0.0:
 		look(stick.x * 900.0 * dt, stick.y * 600.0 * dt, 0.0035)
 	_since_look += dt
-	# ease round behind her while she runs and the player isn't steering the camera
+	# Ease round behind her while she runs away from the camera and the player isn't steering it.
+	# How hard it follows fades with the angle: nothing while she strafes across the view,
+	# and never when she runs toward the camera (that used to spin it round).
 	if _since_look > C.follow_delay and target.ground_speed() > 1.0:
-		yaw = lerp_angle(yaw, target.yaw, 1.0 - exp(-C.follow_rate * 0.35 * dt))
+		var away := cos(angle_difference(yaw, target.yaw))
+		if away > 0.0:
+			yaw = lerp_angle(yaw, target.yaw, 1.0 - exp(-C.follow_rate * 0.35 * away * dt))
 	target.view_yaw = yaw
 	global_position = global_position.lerp(_anchor(), 1.0 - exp(-14.0 * dt))
 	_apply()

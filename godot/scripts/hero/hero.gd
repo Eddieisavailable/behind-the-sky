@@ -9,6 +9,9 @@ const ACCEL := 14.0
 
 var key := "korto"
 var stats: Dictionary
+## Turns to face where she's going (yaw, front -Z). The model sits inside it, turned round:
+## the Blender models face +Z.
+var body: Node3D
 var model: Node3D
 var anim: AnimationPlayer
 ## The camera's yaw: "forward" is away from the camera.
@@ -34,9 +37,13 @@ func setup(hero_key: String) -> void:
 	cs.shape = shape
 	cs.position.y = shape.height / 2.0
 	add_child(cs)
+	body = Node3D.new()
+	body.name = "Body"
+	add_child(body)
 	model = load(stats.model).instantiate()
 	model.scale = Vector3.ONE * stats.scale
-	add_child(model)
+	model.rotation.y = PI
+	body.add_child(model)
 	anim = model.find_child("AnimationPlayer", true, false)
 	_play("Idle")
 
@@ -45,7 +52,7 @@ func place(spawn: Dictionary) -> void:
 	position = Vector3(spawn.x, 0, spawn.z)
 	velocity = Vector3.ZERO
 	yaw = spawn.face
-	model.rotation.y = yaw
+	body.rotation.y = yaw
 
 func move_input() -> Vector2:
 	var v := Input.get_vector("move_left", "move_right", "move_forward", "move_back") + touch_move
@@ -73,7 +80,7 @@ func _physics_process(dt: float) -> void:
 	var speed := flat.length()
 	if input.length() > 0.1:
 		yaw = lerp_angle(yaw, atan2(-want.x, -want.z), 1.0 - exp(-TURN_RATE * dt))
-		model.rotation.y = yaw
+		body.rotation.y = yaw
 	if speed > 0.4:
 		_play("Run", clampf(speed / float(stats.speed), 0.6, 1.25))
 	else:
