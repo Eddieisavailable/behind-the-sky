@@ -2,10 +2,11 @@
 
 An action game rooted in Kpelle folklore and the Woi epic.
 
-> **Direction (October 2026):** the game ships as an **Unreal Engine** game for **PC and Android first, iOS later**; the PWA is dropped.
-> Blender is used for the realism pass on characters and worlds, the cinematic scenes and the trailers; Unreal for the gameplay build.
-> This repo stays as the playable prototype and reference: its rules (`src/rules/`), tuning (`src/config.js`), layouts (`src/game/areas.js`)
-> and Blender scripts are what the Unreal build is ported from.
+> **Direction (October 2026):** the game ships as a **Godot 4** game for **PC (Windows) and Android first, iOS later**; the PWA is dropped
+> (Godot can still export to the web later if that's ever wanted). Blender is used for the realism pass on characters and worlds,
+> the cinematic scenes and the trailers; Godot for the gameplay build. Models move from Blender to Godot as glTF (`.glb`), the same
+> format this prototype already uses. This repo stays as the playable prototype and reference: its rules (`src/rules/`),
+> tuning (`src/config.js`), area layouts (`src/game/areas.js`) and Blender scripts are what the Godot build is ported from.
 
 This repo is **phase 3**: a gray-box prototype that answers one question:
 
