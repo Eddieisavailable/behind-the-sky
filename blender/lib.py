@@ -97,6 +97,16 @@ class Body:
         res = bmesh.ops.create_icosphere(self.bm, subdivisions=1, radius=radius, matrix=matrix)
         return self._finish_part(res["verts"], bone, color, mat)
 
+    def panel(self, bone, color, pts, thickness=0.004, mat=0):
+        """A thin flat shape through the points (a wing membrane), visible from both sides."""
+        pts = [Vector(p) for p in pts]
+        n = (pts[1] - pts[0]).cross(pts[2] - pts[0]).normalized() * (thickness / 2)
+        top = [self.bm.verts.new(p + n) for p in pts]
+        bot = [self.bm.verts.new(p - n) for p in pts]
+        self.bm.faces.new(top)
+        self.bm.faces.new(list(reversed(bot)))
+        return self._finish_part(top + bot, bone, color, mat)
+
     def to_object(self, material, extra_materials=()) -> bpy.types.Object:
         mesh = bpy.data.meshes.new(self.name)
         self.bm.normal_update()
@@ -324,3 +334,35 @@ def jitter(verts, amount=0.05, seed=1):
     for v in verts:
         v.co += Vector((rnd.uniform(-amount, amount), rnd.uniform(-amount, amount), rnd.uniform(-amount, amount)))
     return verts
+
+
+# ---------- posing by direction (creatures whose bones don't line up with the axes) ----------
+
+def aim(arm, bone, d, twist=0.0):
+    """Pose rotation (degrees XYZ) that points `bone` along d, given in the armature's rest axes
+    (for a child bone this is relative to its parent). twist turns it about its own length first."""
+    R = arm.data.bones[bone].matrix_local.to_3x3()
+    q = Vector((0, 1, 0)).rotation_difference((R.inverted() @ Vector(d)).normalized())
+    if twist:
+        q = q @ Quaternion((0, 1, 0), math.radians(twist))
+    return tuple(math.degrees(a) for a in q.to_euler("XYZ"))
+
+
+def turned(arm, bone, yaw=0.0, pitch=0.0, tilt=0.0):
+    """The bone's rest direction turned about the world axes: pitch about X (a forward-pointing
+    bone tips up), tilt about Y (a bone pointing +X tips down), then yaw about Z."""
+    R = arm.data.bones[bone].matrix_local.to_3x3()
+    d = R @ Vector((0, 1, 0))
+    d = (Matrix.Rotation(math.radians(yaw), 3, "Z") @ Matrix.Rotation(math.radians(tilt), 3, "Y")
+         @ Matrix.Rotation(math.radians(-pitch), 3, "X") @ d)
+    return aim(arm, bone, d)
+
+
+def static_part(name: str, body: "Body", materials, arm, bone: str):
+    """A rigid separate piece riding on a bone (armour plates the game can hide one by one)."""
+    obj = body.to_object(materials[0], extra_materials=materials[1:])
+    obj.vertex_groups.clear()
+    obj.name = name
+    obj.data.name = name
+    attach_to_bone(obj, arm, bone, Matrix.Identity(4))
+    return obj

@@ -5,22 +5,29 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
-export async function loadModels() {
-  const loader = new GLTFLoader();
-  const get = async (name) => {
-    const url = new URL(`models/${name}.glb`, document.baseURI).href;
-    try {
-      return await loader.loadAsync(url);
-    } catch (err) {
-      // hosts that don't serve .glb files get the same bytes as a script module (base64)
-      const mod = await import(/* @vite-ignore */ `${url}.js`);
-      const bytes = Uint8Array.from(atob(mod.default), (ch) => ch.charCodeAt(0));
-      return loader.parseAsync(bytes.buffer, '');
-    }
-  };
+const loader = new GLTFLoader();
+
+/** Load one model by name (public/models/<name>.glb). */
+export async function loadModel(name) {
+  const url = new URL(`models/${name}.glb`, document.baseURI).href;
   try {
-    const names = ['korto', 'flomo', 'hornbill', 'crawler', 'sii', 'environment'];
-    const list = await Promise.all(names.map(get));
+    return await loader.loadAsync(url);
+  } catch (err) {
+    // hosts that don't serve .glb files get the same bytes as a script module (base64)
+    const mod = await import(/* @vite-ignore */ `${url}.js`);
+    const bytes = Uint8Array.from(atob(mod.default), (ch) => ch.charCodeAt(0));
+    return loader.parseAsync(bytes.buffer, '');
+  }
+}
+
+/** What the clearing needs at start. Later areas' creatures load when the player reaches them. */
+export const STARTUP_MODELS = ['korto', 'flomo', 'hornbill', 'crawler', 'sii', 'environment'];
+/** Built and ready, used by areas not made yet: the boss, the mini-boss and the night bats. */
+export const LATER_MODELS = ['meni_lizard', 'meni_true', 'rattan_bull', 'bat'];
+
+export async function loadModels(names = STARTUP_MODELS) {
+  try {
+    const list = await Promise.all(names.map(loadModel));
     return Object.fromEntries(names.map((n, i) => [n, list[i]]));
   } catch (err) {
     console.warn('Models did not load; using the gray-box shapes.', err);

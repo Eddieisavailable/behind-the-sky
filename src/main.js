@@ -7,7 +7,7 @@ import { createStats } from './stats.js';
 import { unlockAudio } from './audio.js';
 import { PERF } from './config.js';
 import { resolveQuality } from './quality.js';
-import { loadModels } from './game/models.js';
+import { loadModels, loadModel } from './game/models.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -115,4 +115,4 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 }
 
 // handle for automated tests and for poking at tuning in the console
-window.__bts = { game, stats, input, quality, models, renderer };
+window.__bts = { game, stats, input, quality, models, renderer, loadModel };

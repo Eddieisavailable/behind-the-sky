@@ -36,6 +36,12 @@ Every model is built by a Python script in `blender/`, so it can be rebuilt, twe
 | Sii the spider | `blender/sii.py` | Idle, Drum |
 | Hornbill Genie | `blender/hornbill.py` | Perch, Call, Fly, Glide |
 | Clearing and village (14 pieces) | `blender/environment.py` | static |
+| Meni-maa-fa, lizard form (boss; six breakable back plates `Plate1`-`Plate6`) | `blender/meni_lizard.py` | Idle (agama push-ups), Crawl, Bite, Heal, Call, Hurt, Fall |
+| Meni-maa-fa, true form | `blender/meni_true.py` | Idle, Run, Slash1-3, Block, Offer, Taunt, Hurt, Death, Flee |
+| Rattan Bull (mini-boss) | `blender/rattan_bull.py` | Idle, Walk, Windup, Charge, Stunned, Collapse, Rebuild |
+| Night bat | `blender/bat.py` | Fly, Dive, Fall |
+
+The boss, the Rattan Bull and the bats are built but not in play yet: their areas (the swamp and the bele tree) come next. The game loads them with `loadModel(name)` when an area needs them.
 
 Style: stylized low-poly, flat-shaded vertex colours, one skinned mesh per character (one draw call on a phone), every part bound to one bone like a carved puppet. Preview renders are in `blender/previews/`.
 

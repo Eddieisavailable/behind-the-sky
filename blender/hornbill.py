@@ -14,9 +14,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from lib import (Body, MODELS_OUT, PREVIEWS_OUT, Matrix, Quaternion, Vector, add_action, aim_camera, build_armature,
+from lib import (Body, MODELS_OUT, PREVIEWS_OUT, Matrix, Quaternion, Vector, add_action, aim, aim_camera, build_armature,
                  contact_sheet, export_glb, glow_material, hexcol, mat_at, pose_at, render_to, reset_scene, rest_pose,
-                 setup_preview, skin_to, vertex_color_material)
+                 setup_preview, skin_to, turned, vertex_color_material)
 
 BLACK = hexcol("#16171b")
 BLACK_SHEEN = hexcol("#232a31")
@@ -126,25 +126,6 @@ def build_body():
             b.cone(f"foot.{side}", CLAW, mat_at(tuple(base + d * 0.15 + Vector((0, 0, -0.02))), rot=(math.degrees(math.atan2(-1, 1)), 0, a)), 0.012, 0.0, 0.05, segments=4)
         b.limb(f"foot.{side}", LEG, (0.09 * sx, -0.02, 0.06), (0.09 * sx, 0.1, 0.03), 0.016, 0.012)  # hind toe
     return b
-
-
-# ---------- posing by direction ----------
-def aim(arm, bone, d, twist=0.0):
-    """Pose rotation (degrees XYZ) that points `bone` along d, given in the armature's rest axes
-    (for a child bone this is relative to its parent). twist turns it about its own length first."""
-    R = arm.data.bones[bone].matrix_local.to_3x3()
-    q = Vector((0, 1, 0)).rotation_difference((R.inverted() @ Vector(d)).normalized())
-    if twist:
-        q = q @ Quaternion((0, 1, 0), math.radians(twist))
-    return tuple(math.degrees(a) for a in q.to_euler("XYZ"))
-
-
-def turned(arm, bone, yaw=0.0, pitch=0.0):
-    """The bone's rest direction swung by yaw (about up) and pitch (nose up +)."""
-    R = arm.data.bones[bone].matrix_local.to_3x3()
-    d = R @ Vector((0, 1, 0))
-    d = Matrix.Rotation(math.radians(yaw), 3, "Z") @ Matrix.Rotation(math.radians(-pitch), 3, "X") @ d
-    return aim(arm, bone, d)
 
 
 def folded(arm, side, sx):
