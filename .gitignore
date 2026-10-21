@@ -4,3 +4,4 @@ dev-dist/
 shots/
 *.log
 .DS_Store
+__pycache__/

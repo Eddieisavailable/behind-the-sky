@@ -49,10 +49,10 @@ await wait(500);
 // right click draws the bow, release shoots
 console.log('before bow', JSON.stringify(await g(() => ({ phase: __bts.game.g.phase, locked: __bts.input.pointerLocked, pause: document.getElementById('screen-pause').className }))));
 await page.mouse.down({ button: 'right' });
-await frames(3); await wait(400);
+await frames(3); await wait(400); await frames(10);
 const drawing = await g(() => __bts.game.g.hero.drawing);
 await page.mouse.up({ button: 'right' });
-await wait(50);
+await frames(4);
 const shot = await g(() => __bts.stats.session.ironArrowsShot ?? 0);
 check('holding right click draws the bow and releasing shoots', drawing && shot >= 1, `drawing=${drawing} arrows=${shot}`);
 

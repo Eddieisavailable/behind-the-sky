@@ -300,3 +300,27 @@ def contact_sheet(paths: list[Path], out: Path, cols: int, labels: list[str] | N
     for p in paths:
         p.unlink()
     print("wrote", out)
+
+
+# ---------- static props ----------
+
+def glow_material(name: str, color, strength=3.0):
+    return simple_material(name, color, roughness=0.9, emission=color, strength=strength)
+
+
+def static_object(name: str, body: Body, materials) -> bpy.types.Object:
+    """A non-animated asset: one mesh, no bones; first material is the vertex-colour one."""
+    obj = body.to_object(materials[0], extra_materials=materials[1:])
+    obj.vertex_groups.clear()
+    obj.name = name
+    obj.data.name = name
+    return obj
+
+
+def jitter(verts, amount=0.05, seed=1):
+    """Roughen a part (rocks, clay, bark) by nudging its vertices."""
+    import random
+    rnd = random.Random(seed)
+    for v in verts:
+        v.co += Vector((rnd.uniform(-amount, amount), rnd.uniform(-amount, amount), rnd.uniform(-amount, amount)))
+    return verts

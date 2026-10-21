@@ -1,4 +1,3 @@
-// Run: npx playwright install chromium && npm run build && npx vite preview --port 4173 & node tests/e2e/play-through.mjs
 // Headless play-through of the prototype: loads the built game in a phone-sized
 // landscape viewport, drives each system, takes screenshots and checks for errors.
 import { chromium } from 'playwright';
@@ -19,8 +18,11 @@ const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); };
 const g = (fn, arg) => page.evaluate(fn, arg);
 const wait = (ms) => page.waitForTimeout(ms);
+const frames = (n) => g((k) => new Promise((r) => { let i = 0; const f = () => (++i >= k ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); }), n);
 const shot = (name) => page.screenshot({ path: `${OUT}/${name}.png` });
 
+// Low graphics on the phone pass: software rendering in the test browser is slow, and these checks are about rules
+await page.addInitScript(() => { try { localStorage.setItem('bts-quality', 'low'); } catch {} });
 await page.goto(URL, { waitUntil: 'networkidle' });
 await wait(800);
 await shot('01-start');
@@ -61,7 +63,7 @@ const walk = await g(async () => {
   g.hero.pos.set(0, 0, 0);
   return true;
 });
-await page.keyboard.down('KeyW'); await wait(400); await page.keyboard.up('KeyW');
+await page.keyboard.down('KeyW'); await wait(400); await frames(15); await page.keyboard.up('KeyW');
 const walked = await g(() => ({ x: __bts.game.g.hero.pos.x, z: __bts.game.g.hero.pos.z }));
 check('movement is relative to the camera', walked.x < -1 && Math.abs(walked.z) < 0.8, JSON.stringify(walked));
 
@@ -109,7 +111,8 @@ const regrew = await g(async () => {
   if (!c) return 'none';
   g.hero.pos.set(c.pos.x + 9, 0, c.pos.z + 9);
   c.life.state = 'downed'; c.life.timer = 0;
-  await new Promise((r) => setTimeout(r, 7500));
+  const t0 = performance.now();
+  while (c.life.state !== 'alive' && performance.now() - t0 < 30000) await new Promise((r) => setTimeout(r, 250));
   return c.life.state;
 });
 check('a downed crawler grows back after ~4s', regrew === 'alive', regrew);
@@ -154,11 +157,11 @@ await g(() => {
   g.pack.rice = 6;
   g.hero.pos.set(g.world.crossroads.x + 2, 0, g.world.crossroads.z + 1.5);
 });
-await wait(300);
+await frames(6);
 const interactShown = await page.isVisible('#btn-interact');
 check('interact button appears at the crossroads', interactShown);
 await page.keyboard.press('KeyE');
-await wait(300);
+await frames(6);
 check('crossroads menu opens', await page.isVisible('#screen-crossroads'));
 await shot('06-crossroads');
 await page.click('#btn-pay-rice');

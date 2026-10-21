@@ -80,13 +80,15 @@ const riceMat = new THREE.MeshLambertMaterial({ color: 0xf4ecd4, emissive: 0x2a2
 const ironGeo = new THREE.BoxGeometry(0.3, 0.12, 0.22);
 const scrapMat = new THREE.MeshLambertMaterial({ color: 0x8a96a3, emissive: 0x1a1d20 });
 
-export function createPickups(scene) {
+export function createPickups(scene, templates = null) {
   const list = [];
 
   function drop(x, z, kind) {
-    const mesh = new THREE.Mesh(kind === 'rice' ? riceGeo : ironGeo, kind === 'rice' ? riceMat : scrapMat);
+    const tpl = templates?.[kind];
+    const mesh = tpl ? tpl.clone() : new THREE.Mesh(kind === 'rice' ? riceGeo : ironGeo, kind === 'rice' ? riceMat : scrapMat);
+    if (tpl) mesh.scale.setScalar(1.4); // a bit larger than life so they're easy to spot
     const a = Math.random() * Math.PI * 2;
-    const p = { kind, mesh, pos: new THREE.Vector3(x, 0.3, z), vel: new THREE.Vector3(Math.cos(a) * 2.5, 4, Math.sin(a) * 2.5), t: 0 };
+    const p = { kind, mesh, tpl, pos: new THREE.Vector3(x, 0.3, z), vel: new THREE.Vector3(Math.cos(a) * 2.5, 4, Math.sin(a) * 2.5), t: 0 };
     mesh.position.copy(p.pos);
     scene.add(mesh);
     list.push(p);
@@ -100,7 +102,8 @@ export function createPickups(scene) {
       p.t += dt;
       p.vel.y -= 16 * dt;
       p.pos.addScaledVector(p.vel, dt);
-      if (p.pos.y < 0.2) { p.pos.y = 0.2; p.vel.y = Math.abs(p.vel.y) * 0.3; p.vel.x *= 0.6; p.vel.z *= 0.6; }
+      const floor = p.tpl ? 0.02 : 0.2;
+      if (p.pos.y < floor) { p.pos.y = floor; p.vel.y = Math.abs(p.vel.y) * 0.3; p.vel.x *= 0.6; p.vel.z *= 0.6; }
       const dx = hero.pos.x - p.pos.x;
       const dz = hero.pos.z - p.pos.z;
       const d = Math.hypot(dx, dz);

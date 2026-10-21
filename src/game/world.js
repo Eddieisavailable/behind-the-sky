@@ -84,7 +84,7 @@ export function createWorld(quality) {
   floor.position.y = -0.01;
   scene.add(floor);
 
-  addTrees(scene, quality);
+  const trees = addTrees(scene, quality);
   const crossroads = addCrossroads(scene, obstacles);
   const brazier = addBrazier(scene, obstacles);
   const forge = addForge(scene, obstacles);
@@ -99,7 +99,7 @@ export function createWorld(quality) {
     sun.target.position.set(x, 0, z);
   }
 
-  return { scene, obstacles, crossroads, brazier, forge, vines, sun, followSun };
+  return { scene, obstacles, crossroads, brazier, forge, vines, sun, followSun, trees };
 }
 
 function addGrass(scene, count, obstacles) {
@@ -182,6 +182,7 @@ function addTrees(scene, quality) {
     canopies.castShadow = true;
   }
   scene.add(trunks, canopies);
+  return { trunks, canopies };
 }
 
 function addCrossroads(scene, obstacles) {
@@ -215,7 +216,7 @@ function addCrossroads(scene, obstacles) {
   group.add(ring);
   scene.add(group);
   obstacles.push({ x, z, r: 1.1 });
-  return { x, z, group, ring, interactRange: 3.6 };
+  return { x, z, group, ring, gray: [stone, bowl], interactRange: 3.6 };
 }
 
 function addBrazier(scene, obstacles) {
@@ -231,7 +232,7 @@ function addBrazier(scene, obstacles) {
   group.add(pot, flame, light);
   scene.add(group);
   obstacles.push({ x, z, r: 0.8 });
-  return { x, z, group, flame, light, refillRange: 2.6 };
+  return { x, z, group, flame, light, gray: [pot], refillRange: 2.6 };
 }
 
 function addForge(scene, obstacles) {
@@ -254,7 +255,7 @@ function addForge(scene, obstacles) {
   group.add(anvilBase, anvilTop, drum, sii, fireBed);
   scene.add(group);
   obstacles.push({ x, z, r: 1.2 }, { x: x - 1.8, z: z + 0.6, r: 0.8 }, { x: x + 1.6, z: z - 0.4, r: 0.9 });
-  return { x, z, group, sii, interactRange: 3.4 };
+  return { x, z, group, sii, gray: [anvilBase, anvilTop, drum, sii, fireBed], interactRange: 3.4 };
 }
 
 function addVineClumps(scene, obstacles) {
@@ -283,7 +284,7 @@ function addVineClumps(scene, obstacles) {
     }
     scene.add(clump);
     obstacles.push({ x, z, r: 0.6 });
-    spots.push({ x, z });
+    spots.push({ x, z, group: clump });
   }
   return spots;
 }

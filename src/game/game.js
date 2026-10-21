@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { ARENA, HERO, CUTLASS, BOW, DROPS, HORNBILL, FORGE, WAVES, WAVES_PER_ROUND, CAMERA } from '../config.js';
 import { createWorld, resolveCollisions, castShadows } from './world.js';
+import { dressWorld } from './environment.js';
 import { createCameraRig, updateRig, look, stickToWorld, cameraBasis } from './camera.js';
 import { createHero, poseHero, faceToward } from './hero.js';
 import { createCrawler, updateCrawler, removeCrawler } from './crawlers.js';
@@ -25,7 +26,8 @@ export function createGame({ input, ui, stats, quality, models = null }) {
   const rig = createCameraRig(camera);
   const fx = createFx(scene);
   const arrows = createArrows(scene);
-  const pickups = createPickups(scene);
+  const decor = dressWorld(world, models, quality);
+  const pickups = createPickups(scene, decor.pickupTemplates);
 
   const g = {
     scene, camera, world, fx,
@@ -330,6 +332,7 @@ export function createGame({ input, ui, stats, quality, models = null }) {
   // ---------- per-frame ----------
   function update(dt) {
     fx.update(dt);
+    decor.update(dt);
     world.brazier.flame.scale.y = 1 + Math.sin(performance.now() / 90) * 0.12;
     world.brazier.light.intensity = 13 + Math.sin(performance.now() / 70) * 2;
 

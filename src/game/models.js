@@ -19,15 +19,15 @@ export async function loadModels() {
     }
   };
   try {
-    const [korto, crawler] = await Promise.all([get('korto'), get('crawler')]);
-    return { korto, crawler };
+    const [korto, crawler, sii, environment] = await Promise.all([get('korto'), get('crawler'), get('sii'), get('environment')]);
+    return { korto, crawler, sii, environment };
   } catch (err) {
     console.warn('Models did not load; using the gray-box shapes.', err);
     return null;
   }
 }
 
-function convert(m, lambert) {
+export function convert(m, lambert) {
   if (!lambert) return m.clone();
   // Lambert is cheaper per pixel: used on Medium and Low graphics
   return new THREE.MeshLambertMaterial({
