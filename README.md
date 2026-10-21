@@ -47,8 +47,10 @@ Every model is built by a Python script in `blender/`, so it can be rebuilt, twe
 | Kelema-ninga, the firebird | `blender/kelema.py` | Idle, Fly, Land, Speak |
 | The swamp (10 pieces, incl. the River Woman's rocks and the lizard's lair) | `blender/swamp.py` | static |
 | The bele tree: `Trunk`, `Platform1-12`, `Vine1-11`, `CutBranch1-3`, `Canopy`, `RiceSack1-5` | `blender/bele_tree.py` | static |
+| Gbelewala (15 pieces, incl. the emptied seed-rice store, the palaver hut and the storyteller's fire) | `blender/gbelewala.py` | static |
+| The village cast: storyteller (`Whisk`, `Rattle`), Chief (`Staff`), blacksmith father (`Hammer`), woman with baby (`Pestle`), rice farmer (`Hoe`), elder (`Stick`), child | `blender/people.py` (one script, seven models) | everyone: Idle, Walk, Talk, Sit, Clap, Answer; plus Tell, Sing / Worry, Speak / Hammer / Pound / Hoe |
 
-Everything from Meni-maa-fa down is built but not in play yet: the areas they belong to (the crossroads, the river rocks, the deep bush, the swamp and the bele tree) come next. The game loads them with `loadModel(name)` when an area needs them; glowing parts use a material named `Glow`.
+Everything from Meni-maa-fa down is built but not in play yet: the areas they belong to (Gbelewala, the crossroads, the river rocks, the deep bush, the swamp and the bele tree) come next. The game loads them with `loadModel(name)` when an area needs them; glowing parts use a material named `Glow`.
 
 Style: stylized low-poly, flat-shaded vertex colours, one skinned mesh per character (one draw call on a phone), every part bound to one bone like a carved puppet. Preview renders are in `blender/previews/`.
 

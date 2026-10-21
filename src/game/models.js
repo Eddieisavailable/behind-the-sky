@@ -22,8 +22,9 @@ export async function loadModel(name) {
 
 /** What the clearing needs at start. Later areas' creatures load when the player reaches them. */
 export const STARTUP_MODELS = ['korto', 'flomo', 'hornbill', 'crawler', 'sii', 'environment'];
-/** Built and ready for areas not made yet: the boss, mini-boss, bats, the other genii, Gelengol, the River Woman, Kelema-ninga, the swamp and the bele tree. */
-export const LATER_MODELS = ['meni_lizard', 'meni_true', 'rattan_bull', 'bat', 'genie_iron', 'genie_ant', 'gelengol', 'river_woman', 'kelema', 'swamp', 'bele_tree'];
+/** Built and ready for areas not made yet: the boss, mini-boss, bats, the other genii, Gelengol, the River Woman, Kelema-ninga, the swamp, the bele tree, and Gbelewala with its people. */
+export const LATER_MODELS = ['meni_lizard', 'meni_true', 'rattan_bull', 'bat', 'genie_iron', 'genie_ant', 'gelengol', 'river_woman', 'kelema', 'swamp', 'bele_tree',
+  'gbelewala', 'storyteller', 'chief', 'blacksmith', 'villager_woman', 'villager_man', 'elder', 'child'];
 
 export async function loadModels(names = STARTUP_MODELS) {
   try {
