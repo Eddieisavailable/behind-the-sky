@@ -153,7 +153,7 @@ def build_rice():
 
 def clips(arm):
     A = korto.clips(arm)
-    for name in ("Roll", "Draw", "Burn"):   # moves he never makes
+    for name in ("Roll", "Draw", "Burn", "Climb"):   # moves he never makes
         bpy.data.actions.remove(A.pop(name))
     L = korto.L
     # Offer: steps in, left hand out low with the rice, head cocked, the cutlass held back

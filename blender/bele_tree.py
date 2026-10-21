@@ -15,6 +15,7 @@ places, and each part the game needs to act on is its own named object:
     python blender/bele_tree.py            # build + export public/models/bele_tree.glb
     python blender/bele_tree.py --preview  # also render a preview sheet
 """
+import json
 import math
 import random
 import sys
@@ -209,10 +210,31 @@ def build_all():
     return parts
 
 
+def climb_data():
+    """Where the walkable platform tops and the climbable vines are, for the game (Blender metres, z up)."""
+    plats = []
+    for i in range(PLATFORMS):
+        z, a = platform_spot(i)
+        d = Vector((math.cos(a), math.sin(a), 0))
+        start = trunk_axis(z) + d * (trunk_radius(z) * 0.7)
+        end = start + d * 4.2 + Vector((0, 0, 0.5))
+        mid = (start + end) / 2
+        plats.append({"mid": [round(mid.x, 3), round(mid.y, 3)], "dir": [round(d.x, 4), round(d.y, 4)],
+                      "length": round((end - start).length, 3), "width": 1.7, "top": round(mid.z + 0.15, 3),
+                      "tip": [round(end.x - d.x * 0.5, 3), round(end.y - d.y * 0.5, 3)]})
+    trunk = []
+    for k in range(0, 41, 2):
+        ax = trunk_axis(float(k))
+        trunk.append([float(k), round(ax.x, 3), round(ax.y, 3), round(trunk_radius(float(k)), 3)])
+    return {"platforms": plats, "trunk": trunk, "height": HEIGHT,
+            "crown": [round(trunk_axis(HEIGHT).x, 3), round(trunk_axis(HEIGHT).y, 3), HEIGHT + 4]}
+
+
 def main():
     reset_scene()
     parts = build_all()
     export_glb(MODELS_OUT / "bele_tree.glb")
+    (MODELS_OUT / "bele_tree.json").write_text(json.dumps(climb_data(), indent=1))
     if "--preview" in sys.argv:
         cam = setup_preview(size=(600, 760))
         views = [(20, 20, 70, 14), (200, 22, 70, 14), (35, 10, 26, 8), (60, 33, 26, 38)]

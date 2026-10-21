@@ -110,6 +110,7 @@ function animateModel(h, dt, moving, speedFactor) {
   h.hurtAnim = Math.max(0, h.hurtAnim - dt);
   h.burnAnim = Math.max(0, h.burnAnim - dt);
   if (h.dead) a.play('Death', { once: true, fade: 0.1 });
+  else if (h.climbing) a.play('Climb', { fade: 0.15, timeScale: 1.2 });
   else if (h.dodgeLeft > 0) a.play('Roll', { once: true, fade: 0.05, seconds: 0.3 });
   else if (c.step >= 0) {
     const name = `Slash${c.step + 1}`;

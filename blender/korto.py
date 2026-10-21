@@ -231,6 +231,13 @@ def clips(arm):
              "upperarm.R": (-70, 25, 0), "forearm.R": (-10, 0, 0), "hips": {"loc": (0, -0.12, 0)}}),
         (12, {}),
     ], loop=False)
+    # Climb: hand over hand up a rattan rope, knees drawn up, leaning into it
+    def reach(up):
+        dn = "R" if up == "L" else "L"
+        return {"spine": (12, 0, 0), "chest": (6, 0, 0), "head": (-18, 0, 0),
+                **L(up, upperarm=(-168, 0, 0), forearm=(-20, 0, 0), thigh=(-70, 0, 0), shin=(85, 0, 0)),
+                **L(dn, upperarm=(-120, 0, 0), forearm=(-75, 0, 0), thigh=(-20, 0, 0), shin=(40, 0, 0))}
+    A["Climb"] = add_action(arm, "Climb", [(1, reach("L")), (13, reach("R")), (25, reach("L"))])
     return A
 
 

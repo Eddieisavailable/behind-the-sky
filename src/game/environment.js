@@ -26,7 +26,7 @@ function floatGeometry(src) {
 }
 
 /** The meshes that make up one named asset, with geometry in the asset's own space. */
-function partsOf(gltf, name, lambert) {
+export function partsOf(gltf, name, lambert) {
   const node = gltf.scene.getObjectByName(name);
   if (!node) return [];
   gltf.scene.updateMatrixWorld(true);

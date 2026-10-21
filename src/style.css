@@ -281,3 +281,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
   /* Desktop playtests: keep the buttons, but smaller */
   .buttons { transform: scale(0.8); transform-origin: bottom right; }
 }
+
+/* Walk the world */
+.fade { position: absolute; inset: 0; background: #070a08; opacity: 0; pointer-events: none; transition: opacity 0.35s; z-index: 6; }
+.fade.on { opacity: 1; }
+body.explore .hud-left, body.explore #btn-power, body.explore #btn-arrow, body.explore #btn-bow,
+body.explore #btn-attack, body.explore #btn-dodge { display: none; }
+body.explore .wave-sub { max-width: 60vw; }
+.world-label.exit { background: rgba(232, 116, 42, 0.85); color: #1a0f06; font-weight: 700; }

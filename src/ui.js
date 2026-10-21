@@ -330,6 +330,7 @@ export function createUi({ stats, quality }) {
     pick(saved);
     for (const c of cards) c.addEventListener('click', () => pick(c.dataset.hero));
     $('btn-resume').addEventListener('click', () => { hide(el.pause); game.resume(); hooks.onResume?.(); });
+    $('btn-menu').addEventListener('click', () => location.reload());
     $('btn-pause').addEventListener('click', () => pause());
     $('btn-again').addEventListener('click', () => { hide(el.dead); onStart(); });
     $('btn-win-again').addEventListener('click', () => { hide(el.win); onStart(); });
@@ -370,6 +371,23 @@ export function createUi({ stats, quality }) {
     });
   }
 
+  // ---------- walk the world ----------
+  function title(t, sub = '') {
+    delete last.waveTitle; delete last.waveSub;
+    el.waveTitle.textContent = t;
+    el.waveSub.textContent = sub;
+  }
+  let interactLast;
+  function setInteract(label) {
+    if (label === interactLast) return;
+    interactLast = label;
+    delete last.interact;
+    el.btnInteract.classList.toggle('hidden', !label);
+    if (label) el.btnInteract.innerHTML = `${label}<span class="key">E</span>`;
+  }
+  /** Pause and resume act on whichever mode is running (the clearing fight or walking the world). */
+  function setActive(mode) { game = mode; }
+
   function enterPlay() {
     hide(el.start);
     show(el.hud);
@@ -381,5 +399,6 @@ export function createUi({ stats, quality }) {
     el.rotate.classList.toggle('hidden', !(touch && innerHeight > innerWidth));
   }
 
-  return { hud, toast, setVignette, setDarkness, hurt, setFps, pause, dead, win, openCrossroads, openForge, labels, bind, enterPlay, checkOrientation };
+  return { hud, toast, setVignette, setDarkness, hurt, setFps, pause, dead, win, openCrossroads, openForge, labels, bind, enterPlay, checkOrientation,
+    title, setInteract, setActive };
 }

@@ -24,6 +24,21 @@ Third-person camera, no story yet, one clearing. Phase 4 is under way: both hero
 
 Every tuning number is in `src/config.js`.
 
+## Walk the world
+
+From the start screen, **Walk the world** opens the slice's places as walkable areas, built from the Blender kits (`src/game/areas.js`, engine in `src/game/explore.js`):
+
+| Area | Mood | What's there | Paths to |
+| --- | --- | --- | --- |
+| Gbelewala | morning | houses, palaver hut, the emptied seed-rice store, the father's forge, the Chief, villagers | the rice farm |
+| The rice farm | day | upland rice, drying racks, farmers, the burning field brazier, rattan sign | Gbelewala, the crossroads |
+| The crossroads | dusk | the offering stone, Gelengol singing, the Hornbill on its post | the rice farm, the deep bush, the river rocks |
+| The deep bush | dim green | dense forest, the Iron-Stone and Driver-Ant genii in their glades | the crossroads, the swamp |
+| The river rocks | afternoon | the river, the River Woman combing her hair | the crossroads, the swamp |
+| The swamp | night | water, bats round the crown, the Rattan Bull, the lizard's lair, koong plants, and the bele tree | the river rocks, the deep bush |
+
+The bele tree can be climbed: its 12 branch platforms are floors (`public/models/bele_tree.json`, written by `blender/bele_tree.py`), and each vine is climbed with **E** / the Climb button. Walk off a branch and you fall to what's below. People with something to say have a **Talk** button. No fighting in these areas yet.
+
 ## Models (Blender)
 
 Every model is built by a Python script in `blender/`, so it can be rebuilt, tweaked and reviewed like code:

@@ -44,7 +44,7 @@ const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
  * @param hero    { pos: Vector3, facing: Vector2 }
  * @param opts    { moving, aiming, snap }
  */
-export function updateRig(rig, dt, hero, { moving = false, aiming = false, snap = false } = {}) {
+export function updateRig(rig, dt, hero, { moving = false, aiming = false, snap = false, fits = null } = {}) {
   rig.sinceLook += dt;
 
   // drift behind the hero while running forward or sideways, unless the player is steering the view
@@ -57,19 +57,21 @@ export function updateRig(rig, dt, hero, { moving = false, aiming = false, snap 
   const wantDist = aiming ? CAMERA.aimDistance : CAMERA.distance;
   rig.dist += (wantDist - rig.dist) * Math.min(1, dt * 8);
 
-  rig.target.set(hero.pos.x, CAMERA.height, hero.pos.z);
-  // keep the camera out of the tree wall: pull in when it would leave the clearing
+  const baseY = hero.pos.y || 0;   // the hero can be up a tree in the explore areas
+  rig.target.set(hero.pos.x, baseY + CAMERA.height, hero.pos.z);
+  // keep the camera out of walls: pull in when it would leave the clearing (or where `fits` says no)
+  const ok = fits || ((x, z) => Math.hypot(x, z) <= ARENA.radius + CAMERA.edgeAllowance);
   let d = rig.dist;
   const cp = Math.cos(rig.pitch);
   for (let i = 0; i < 12; i++) {
     const x = hero.pos.x + Math.sin(rig.yaw) * cp * d;
     const z = hero.pos.z + Math.cos(rig.yaw) * cp * d;
-    if (Math.hypot(x, z) <= ARENA.radius + CAMERA.edgeAllowance || d <= CAMERA.minDistance) break;
+    if (ok(x, z, baseY + CAMERA.height + Math.sin(rig.pitch) * d) || d <= CAMERA.minDistance) break;
     d -= 0.4;
   }
   rig.desired.set(
     hero.pos.x + Math.sin(rig.yaw) * cp * d,
-    CAMERA.height + Math.sin(rig.pitch) * d,
+    baseY + CAMERA.height + Math.sin(rig.pitch) * d,
     hero.pos.z + Math.cos(rig.yaw) * cp * d,
   );
 

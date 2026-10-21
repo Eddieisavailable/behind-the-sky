@@ -8,6 +8,7 @@ import { unlockAudio } from './audio.js';
 import { PERF } from './config.js';
 import { resolveQuality } from './quality.js';
 import { loadModels, loadModel } from './game/models.js';
+import { createExplore } from './game/explore.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -24,6 +25,8 @@ const canvas = $('scene');
 const renderer = createRenderer(canvas, quality);
 const models = await loadModels();
 const game = createGame({ input, ui, stats, quality, models });
+const explore = createExplore({ input, ui, quality, models });
+let active = game;   // the clearing fight, or walking the world
 
 // ---- sizing and adaptive resolution ----
 const basePixelRatio = Math.min(window.devicePixelRatio, quality.maxPixelRatio);
@@ -34,6 +37,7 @@ function resize() {
   renderer.setPixelRatio(basePixelRatio * scale);
   renderer.setSize(w, h, false);
   game.setAspect(w, h);
+  explore.setAspect(w, h);
   ui.checkOrientation();
 }
 window.addEventListener('resize', resize);
@@ -41,6 +45,25 @@ window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 resize();
 
 // ---- start ----
+function goFullscreen() {
+  const root = document.documentElement;
+  if (matchMedia('(pointer: coarse)').matches && root.requestFullscreen) {
+    root.requestFullscreen({ navigationUI: 'hide' })
+      .then(() => screen.orientation?.lock?.('landscape').catch(() => {}))
+      .catch(() => {});
+  }
+}
+async function startExplore() {
+  unlockAudio();
+  goFullscreen();
+  active = explore;
+  ui.setActive(explore);
+  document.body.classList.add('explore');
+  ui.enterPlay();
+  explore.setHero(game.heroKey);
+  input.lockPointer();
+  await explore.start('gbelewala');
+}
 function start() {
   unlockAudio();
   const root = document.documentElement;
@@ -55,7 +78,10 @@ function start() {
 }
 const startBtn = $('btn-start');
 startBtn.disabled = false;
-startBtn.textContent = 'Tap to play';
+startBtn.textContent = 'Fight in the clearing';
+const exploreBtn = $('btn-explore');
+exploreBtn.disabled = false;
+exploreBtn.addEventListener('click', startExplore);
 ui.bind(game, {
   onStart: start,
   onPause: () => input.releasePointer(),
@@ -64,7 +90,7 @@ ui.bind(game, {
 
 // pause when the phone locks or the tab is hidden
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && game.g.phase === 'play') ui.pause();
+  if (document.hidden && active.g.phase === 'play') ui.pause();
   if (document.hidden) stats.save();
 });
 
@@ -80,17 +106,17 @@ function frame(now) {
   last = now;
   const dt = Math.min(rawDt, 0.05);
 
-  game.update(dt);
-  renderer.render(game.scene, game.camera);
-  ui.labels(game.labelAnchors(), game.camera, window.innerWidth, window.innerHeight);
-  lockHint.classList.toggle('hidden', !(game.g.phase === 'play' && input.canLock() && !input.pointerLocked));
+  active.update(dt);
+  if (active.scene) renderer.render(active.scene, active.camera);
+  ui.labels(active.labelAnchors(), active.camera, window.innerWidth, window.innerHeight);
+  lockHint.classList.toggle('hidden', !(active.g.phase === 'play' && input.canLock() && !input.pointerLocked));
 
   // frame-rate meter and adaptive resolution (measured over 2-second windows)
   windowTime += rawDt;
   windowFrames += 1;
   if (windowTime >= 2) {
     const fps = windowFrames / windowTime;
-    if (game.g.phase === 'play') stats.sampleFps(fps, windowTime);
+    if (active.g.phase === 'play') stats.sampleFps(fps, windowTime);
     if (fps < PERF.lowFps && scale > quality.minScale) {
       scale = Math.max(quality.minScale, scale - (fps < PERF.veryLowFps ? 0.25 : 0.15));
       resize();
@@ -115,4 +141,4 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 }
 
 // handle for automated tests and for poking at tuning in the console
-window.__bts = { game, stats, input, quality, models, renderer, loadModel };
+window.__bts = { game, explore, stats, input, quality, models, renderer, loadModel, get active() { return active; } };
