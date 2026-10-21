@@ -7,7 +7,17 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 
 export async function loadModels() {
   const loader = new GLTFLoader();
-  const get = (name) => loader.loadAsync(new URL(`models/${name}.glb`, document.baseURI).href);
+  const get = async (name) => {
+    const url = new URL(`models/${name}.glb`, document.baseURI).href;
+    try {
+      return await loader.loadAsync(url);
+    } catch (err) {
+      // hosts that don't serve .glb files get the same bytes as a script module (base64)
+      const mod = await import(/* @vite-ignore */ `${url}.js`);
+      const bytes = Uint8Array.from(atob(mod.default), (ch) => ch.charCodeAt(0));
+      return loader.parseAsync(bytes.buffer, '');
+    }
+  };
   try {
     const [korto, crawler] = await Promise.all([get('korto'), get('crawler')]);
     return { korto, crawler };
