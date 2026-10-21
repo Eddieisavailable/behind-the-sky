@@ -3,8 +3,9 @@
 // this file through the `ui` object passed in.
 
 import * as THREE from 'three';
-import { ARENA, HERO, CUTLASS, BOW, DROPS, HORNBILL, FORGE, WAVES } from '../config.js';
-import { createWorld, resolveCollisions } from './world.js';
+import { ARENA, HERO, CUTLASS, BOW, DROPS, HORNBILL, FORGE, WAVES, WAVES_PER_ROUND, CAMERA } from '../config.js';
+import { createWorld, resolveCollisions, castShadows } from './world.js';
+import { createCameraRig, updateRig, look, stickToWorld, cameraBasis } from './camera.js';
 import { createHero, poseHero, faceToward } from './hero.js';
 import { createCrawler, updateCrawler, removeCrawler } from './crawlers.js';
 import { createArrows, createPickups } from './projectiles.js';
@@ -15,19 +16,20 @@ import { hitIron, hitFire, isGone } from '../rules/crawlerLife.js';
 import { waveSize, crawlerSpeed } from '../rules/waves.js';
 import { sfx } from '../audio.js';
 
-const CAMERA_OFFSET = new THREE.Vector3(0, 17, 12.5);
+const BURN_RANGE = 2.6;
 
-export function createGame({ input, ui, stats }) {
-  const world = createWorld();
+export function createGame({ input, ui, stats, quality }) {
+  const world = createWorld(quality);
   const { scene } = world;
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.5, 120);
+  const camera = new THREE.PerspectiveCamera(CAMERA.fov, 1, 0.2, 150);
+  const rig = createCameraRig(camera);
   const fx = createFx(scene);
   const arrows = createArrows(scene);
   const pickups = createPickups(scene);
 
   const g = {
     scene, camera, world, fx,
-    phase: 'title',            // title | play | menu | paused | dead
+    phase: 'title',            // title | play | menu | paused | dead | won
     hero: null,
     crawlers: [],
     pack: { rice: 0, iron: 0 },
@@ -38,7 +40,8 @@ export function createGame({ input, ui, stats }) {
     breatherLeft: 0,
     roundTime: 0,
     hints: new Set(),
-    nearby: null,              // 'crossroads' | 'forge' | null
+    nearby: null,              // 'burn' | 'crossroads' | 'forge' | null
+    burnTarget: null,
   };
 
   function reset() {
@@ -47,6 +50,7 @@ export function createGame({ input, ui, stats }) {
     arrows.clear();
     pickups.clear();
     g.hero = createHero(scene);
+    useRealShadows(g.hero.group);
     g.crawlers = [];
     g.pack = { rice: 0, iron: 0 };
     g.forgeLevel = 0;
@@ -57,13 +61,21 @@ export function createGame({ input, ui, stats }) {
     g.waveState = 'breather';
     g.breatherLeft = 2;        // a moment to look around before wave 1
     combo.cancel(g.hero.combo);
-    snapCamera();
+    rig.yaw = 0;
+    rig.pitch = CAMERA.pitch;
+    updateRig(rig, 0, g.hero, { snap: true });
     ui.setDarkness(0);
     ui.setVignette(false);
     pushHud();
   }
 
   // ---------- helpers ----------
+  function useRealShadows(group) {
+    if (!quality.shadows) return;
+    castShadows(group);
+    group.traverse((o) => { if (o.userData.blob) o.visible = false; });
+  }
+
   const mult = () => 1 + g.forgeLevel * FORGE.damagePerLevel;
   const dist2d = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
@@ -103,7 +115,7 @@ export function createGame({ input, ui, stats }) {
     if (state === 'burned' && before !== 'burned') onBurned(c);
     else if (state === 'downed' && before !== 'downed') {
       c.wasKnocked = true;
-      hint('downed', 'It will grow back. Burn it with a fire arrow before it rises.');
+      hint('downed', 'Down, but it will grow back in 4 seconds. Stand by it and tap Burn it.');
     }
   }
 
@@ -121,6 +133,7 @@ export function createGame({ input, ui, stats }) {
       const c = createCrawler(scene, s.x + (Math.random() - 0.5) * 2, s.z + (Math.random() - 0.5) * 2, { speed });
       c.life.state = 'regrowing';   // rises out of the vines
       c.life.timer = 0;
+      useRealShadows(c.group);
       g.crawlers.push(c);
     }
     for (let i = 0; i < size.disguised; i++) {
@@ -133,18 +146,42 @@ export function createGame({ input, ui, stats }) {
         const clear = [ARENA.crossroads, ARENA.forge, ARENA.brazier].every((p) => Math.hypot(p.x - x, p.z - z) > 5)
           && Math.hypot(g.hero.pos.x - x, g.hero.pos.z - z) > 7;
         if (!clear) continue;
-        g.crawlers.push(createCrawler(scene, x, z, { disguised: true, speed }));
+        const c = createCrawler(scene, x, z, { disguised: true, speed });
+        useRealShadows(c.group);
+        g.crawlers.push(c);
         break;
       }
     }
     sfx.wave();
-    ui.toast(size.disguised ? `Wave ${g.wave}: one of them hides as a vine post` : `Wave ${g.wave}`, 2200);
+    ui.toast(size.disguised ? `Wave ${g.wave} of ${WAVES_PER_ROUND}: one of them hides as a vine post` : `Wave ${g.wave} of ${WAVES_PER_ROUND}`, 2200);
     stats.max('bestWave', g.wave);
     pushHud();
   }
 
   function remainingCrawlers() {
     return g.crawlers.filter((c) => !isGone(c.life)).length;
+  }
+  const isPile = (c) => c.life.state === 'downed' || c.life.state === 'regrowing';
+  function downedCrawlers() {
+    // spawning crawlers also "regrow" out of the vines; only count real knock-downs
+    return g.crawlers.filter((c) => isPile(c) && c.wasKnocked).length;
+  }
+
+  /** Burn the pile next to the hero with one fire arrow (the Burn it button). */
+  function burnNearby() {
+    const h = g.hero;
+    const c = g.burnTarget;
+    if (!c || !isPile(c)) return;
+    if (h.fireArrows <= 0) {
+      ui.toast('No fire left. Light more at the brazier.', 2000);
+      return;
+    }
+    h.fireArrows -= 1;
+    faceToward(h, c.pos.x - h.pos.x, c.pos.z - h.pos.z);
+    const before = c.life.state;
+    const after = hitFire(c.life, 0);
+    afterHit(c, after, before);
+    stats.add('burnButton', 1);
   }
 
   // ---------- combat ----------
@@ -163,7 +200,7 @@ export function createGame({ input, ui, stats }) {
       if (ang > arc && d > 0.9) continue;
       if (st === 'downed' || st === 'regrowing') {
         fx.burst(c.pos.x, 0.4, c.pos.z, 'spark', 4, 2);
-        hint('downed-cut', 'Iron cannot finish what grows back. Use fire.');
+        hint('downed-cut', 'Iron cannot finish what grows back. Tap Burn it.');
         continue;
       }
       const before = st;
@@ -215,6 +252,13 @@ export function createGame({ input, ui, stats }) {
     h_stopDraw();
     stats.add('deaths', 1);
     ui.dead({ wave: g.wave, seconds: g.roundTime, burned: g.roundBurned });
+  }
+
+  function win() {
+    g.phase = 'won';
+    h_stopDraw();
+    stats.add('roundsWon', 1);
+    ui.win({ seconds: g.roundTime, burned: g.roundBurned, debt: g.genie.debt, forge: g.forgeLevel });
   }
 
   function h_stopDraw() {
@@ -286,7 +330,7 @@ export function createGame({ input, ui, stats }) {
 
     if (g.phase !== 'play') {
       input.consume();
-      followCamera(dt);
+      if (g.hero) updateRig(rig, dt, g.hero);
       return;
     }
     g.roundTime += dt;
@@ -305,6 +349,9 @@ export function createGame({ input, ui, stats }) {
     const reveal = g.genie.activeFor > 0;
     ui.setDarkness(debt.isTurned(g.genie) ? 1 : 0);
 
+    // look around (drag, mouse, or arrow keys)
+    look(rig, inp.look.dx + inp.lookKeys.x * dt * 420, inp.look.dy + inp.lookKeys.y * dt * 240);
+
     // timers
     h.invulnerable = Math.max(0, h.invulnerable - dt);
     h.dodgeCooldown = Math.max(0, h.dodgeCooldown - dt);
@@ -315,12 +362,13 @@ export function createGame({ input, ui, stats }) {
       if (h.arrowKind === 'fire' && h.fireArrows <= 0) hint('no-fire', 'No fire arrows. Light them at the brazier.');
     }
 
+    // the stick is relative to the camera
+    const moveLen = Math.min(1, Math.hypot(inp.move.x, inp.move.z));
+    const mv = stickToWorld(rig, inp.move.x, inp.move.z);
+
     // roll
-    const moveLen = Math.hypot(inp.move.x, inp.move.z);
     if (inp.dodge && h.dodgeLeft <= 0 && h.dodgeCooldown <= 0) {
-      const d = inp.dodge;
-      if (Math.hypot(d.x, d.z) > 0.1) h.dodgeDir.set(d.x, d.z).normalize();
-      else if (moveLen > 0.1) h.dodgeDir.set(inp.move.x, inp.move.z).normalize();
+      if (moveLen > 0.1) h.dodgeDir.set(mv.x, mv.z).normalize();
       else h.dodgeDir.copy(h.facing);
       h.dodgeLeft = HERO.dodge.duration;
       h.invulnerable = Math.max(h.invulnerable, HERO.dodge.invulnerable);
@@ -354,7 +402,9 @@ export function createGame({ input, ui, stats }) {
     let aimLength = 6;
     if (h.drawing) {
       h.drawTime += dt;
-      if (moveLen > 0.2) faceToward(h, inp.move.x, inp.move.z);
+      // aim where the camera looks; the stick strafes
+      const b = cameraBasis(rig);
+      faceToward(h, b.fx, b.fz);
       aimDir = h.facing.clone();
       const assist = (BOW.assistDegrees * Math.PI) / 180;
       let best = null;
@@ -402,9 +452,9 @@ export function createGame({ input, ui, stats }) {
       let speed = HERO.speed;
       if (h.drawing) speed *= HERO.aimSpeedFactor;
       if (combo.isSwinging(h.combo)) speed *= 0.35;
-      h.pos.x += inp.move.x * speed * dt;
-      h.pos.z += inp.move.z * speed * dt;
-      if (!h.drawing && !combo.isSwinging(h.combo)) faceToward(h, inp.move.x, inp.move.z);
+      h.pos.x += mv.x * speed * dt;
+      h.pos.z += mv.z * speed * dt;
+      if (!h.drawing && !combo.isSwinging(h.combo)) faceToward(h, mv.x, mv.z);
     }
     resolveCollisions(h.pos, h.radius, world.obstacles);
 
@@ -440,7 +490,9 @@ export function createGame({ input, ui, stats }) {
     // places
     const { crossroads, forge, brazier } = world;
     g.nearby = null;
-    if (dist2d(crossroads, h.pos) < crossroads.interactRange) g.nearby = 'crossroads';
+    g.burnTarget = nearestCrawler(BURN_RANGE, isPile);
+    if (g.burnTarget) g.nearby = 'burn';
+    else if (dist2d(crossroads, h.pos) < crossroads.interactRange) g.nearby = 'crossroads';
     else if (dist2d(forge, h.pos) < forge.interactRange) g.nearby = 'forge';
     crossroads.ring.material.opacity = g.genie.debt > 0 ? 0.35 + Math.sin(performance.now() / 300) * 0.2 : 0;
     if (dist2d(brazier, h.pos) < brazier.refillRange && h.fireArrows < BOW.fireArrowsMax) {
@@ -449,7 +501,8 @@ export function createGame({ input, ui, stats }) {
       sfx.burn();
       ui.toast(`Fire arrows lit (${BOW.fireArrowsMax})`, 1400);
     }
-    if (inp.interact && g.nearby) openPlace(g.nearby);
+    if (inp.interact && g.nearby === 'burn') burnNearby();
+    else if (inp.interact && g.nearby) openPlace(g.nearby);
 
     // waves
     if (g.waveState === 'fighting' && remainingCrawlers() === 0) {
@@ -457,6 +510,7 @@ export function createGame({ input, ui, stats }) {
       g.breatherLeft = WAVES.breather;
       stats.add('wavesCleared', 1);
       sfx.wave();
+      if (g.wave >= WAVES_PER_ROUND) { win(); return; }
       ui.toast(g.genie.debt > 0 ? `Wave ${g.wave} cleared. Pay your debt at the crossroads.` : `Wave ${g.wave} cleared.`, 2600);
     } else if (g.waveState === 'breather') {
       g.breatherLeft -= dt;
@@ -464,7 +518,8 @@ export function createGame({ input, ui, stats }) {
     }
 
     poseHero(h, dt, { moving: moveLen > 0.05 || h.dodgeLeft > 0, aimDir, aimLength });
-    followCamera(dt);
+    updateRig(rig, dt, h, { moving: moveLen > 0.3, aiming: h.drawing });
+    world.followSun(h.pos.x, h.pos.z);
     input.consume();
     pushHud();
   }
@@ -479,19 +534,6 @@ export function createGame({ input, ui, stats }) {
       h_stopDraw();
       ui.openForge();
     }
-  }
-
-  function followCamera(dt) {
-    if (!g.hero) return;
-    const target = tmpTarget.set(g.hero.pos.x, 0, g.hero.pos.z).add(CAMERA_OFFSET);
-    const k = 1 - Math.exp(-dt * 6);
-    camera.position.lerp(target, k);
-    camera.lookAt(camera.position.x, 0.8, camera.position.z - CAMERA_OFFSET.z - 1.2);
-  }
-  const tmpTarget = new THREE.Vector3();
-  function snapCamera() {
-    camera.position.set(g.hero.pos.x, 0, g.hero.pos.z).add(CAMERA_OFFSET);
-    camera.lookAt(camera.position.x, 0.8, camera.position.z - CAMERA_OFFSET.z - 1.2);
   }
 
   function pushHud() {
@@ -516,6 +558,9 @@ export function createGame({ input, ui, stats }) {
       waveState: g.waveState,
       breatherLeft: g.breatherLeft,
       remaining: remainingCrawlers(),
+      downed: downedCrawlers(),
+      totalWaves: WAVES_PER_ROUND,
+      fireLeft: h.fireArrows,
       nearby: g.nearby,
       owes: gn.debt > 0,
     });
@@ -523,8 +568,8 @@ export function createGame({ input, ui, stats }) {
 
   function setAspect(w, h) {
     camera.aspect = w / h;
-    // in portrait, pull back so the clearing still fits
-    camera.fov = w < h ? 70 : 48;
+    // in portrait, widen the view so the sides of the fight stay visible
+    camera.fov = w < h ? CAMERA.portraitFov : CAMERA.fov;
     camera.updateProjectionMatrix();
   }
 
@@ -535,12 +580,22 @@ export function createGame({ input, ui, stats }) {
     update, reset, setAspect,
     start() { reset(); g.phase = 'play'; stats.add('rounds', 1); },
     resume() { if (g.phase === 'paused' || g.phase === 'menu') g.phase = 'play'; },
+    rig,
     pauseGame() { if (g.phase === 'play') g.phase = 'paused'; },
     payOffering, spendForgeIron, applyForge,
-    labelAnchors: () => [
-      { key: 'crossroads', text: 'Crossroads', x: world.crossroads.x, y: 2.4, z: world.crossroads.z },
-      { key: 'forge', text: 'Forge', x: world.forge.x, y: 2.4, z: world.forge.z },
-      { key: 'brazier', text: 'Brazier', x: world.brazier.x, y: 2.8, z: world.brazier.z },
-    ],
+    labelAnchors: () => {
+      const list = [
+        { key: 'crossroads', text: 'Crossroads', x: world.crossroads.x, y: 2.4, z: world.crossroads.z },
+        { key: 'forge', text: 'Forge', x: world.forge.x, y: 2.4, z: world.forge.z },
+        { key: 'brazier', text: 'Brazier · fire', x: world.brazier.x, y: 2.8, z: world.brazier.z },
+      ];
+      // a countdown over every knocked-down crawler, so it's clear it will rise again
+      for (const c of g.crawlers) {
+        if (!isPile(c) || !c.wasKnocked) continue;
+        const left = c.life.state === 'downed' ? Math.max(0, c.life.cfg.regrowAfter - c.life.timer) : 0;
+        list.push({ key: `burn-${c.id}`, text: left > 0 ? `Burn it · ${Math.ceil(left)}` : 'Rising!', cls: 'burn', x: c.pos.x, y: 1.2, z: c.pos.z });
+      }
+      return list;
+    },
   };
 }

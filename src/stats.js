@@ -56,8 +56,8 @@ export function createStats() {
       const lines = [
         'Behind the Sky prototype - playtest',
         `Device: ${navigator.userAgent}`,
-        `Screen: ${window.innerWidth}x${window.innerHeight} @${window.devicePixelRatio}x, render scale ${extra.renderScale ?? '?'}`,
-        `Session: ${mins} min played, ${s.rounds ?? 0} rounds, best wave ${s.bestWave ?? 0}, ${s.deaths ?? 0} deaths`,
+        `Screen: ${window.innerWidth}x${window.innerHeight} @${window.devicePixelRatio}x, graphics ${extra.quality ?? '?'}, render scale ${extra.renderScale ?? '?'}`,
+        `Session: ${mins} min played, ${s.rounds ?? 0} rounds, ${s.roundsWon ?? 0} won, best wave ${s.bestWave ?? 0}, ${s.deaths ?? 0} deaths`,
         `Crawlers burned: ${s.burned ?? 0}, waves cleared: ${s.wavesCleared ?? 0}`,
         `Hornbill: ${s.powerUses ?? 0} uses, ${s.offerings ?? 0} offerings, turned ${s.turned ?? 0} times`,
         `Forge: ${s.forgeRuns ?? 0} runs, best score ${s.forgeBestScore ?? 0}%`,

@@ -42,6 +42,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hurt { background: radial-gradient(ellipse at center, rgba(200, 56, 45, 0) 40%, rgba(200, 56, 45, 0.55) 100%); transition: opacity 0.12s; }
 
 #labels { position: absolute; inset: 0; pointer-events: none; }
+.world-label.burn {
+  background: rgba(232, 116, 42, 0.88);
+  border-color: #ffd2a8;
+  color: #1a0f06;
+  font-weight: 700;
+}
 .world-label {
   position: absolute;
   transform: translate(-50%, -100%);
@@ -88,7 +94,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hud-center { text-align: center; text-shadow: 0 1px 3px #000; }
 .wave-title { font-weight: 700; font-size: 17px; letter-spacing: 0.02em; }
 .wave-sub { font-size: 12px; color: var(--parchment-dim); }
-.hud-right { pointer-events: auto; }
+.hud-right { pointer-events: auto; position: relative; z-index: 5; }
 .icon-btn {
   width: 40px; height: 40px; border-radius: 50%;
   background: rgba(0, 0, 0, 0.45); border: 1px solid var(--line);
@@ -122,9 +128,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .toast.show { opacity: 1; }
 
 /* Touch controls */
-.controls { position: absolute; inset: 0; }
-.stick-zone { position: absolute; left: 0; top: 70px; bottom: 0; width: 45%; }
-.swipe-zone { position: absolute; right: 0; top: 70px; bottom: 0; width: 55%; }
+.controls { position: absolute; inset: 0; pointer-events: none; }
+/* the zones start below the HUD so the pause button and chips stay tappable */
+.stick-zone { position: absolute; left: 0; top: 96px; bottom: 0; width: 45%; pointer-events: auto; }
+.look-zone { position: absolute; right: 0; top: 96px; bottom: 0; width: 55%; pointer-events: auto; }
 .stick-base {
   position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px;
   border-radius: 50%; border: 2px solid var(--line); background: rgba(0, 0, 0, 0.18);
@@ -197,6 +204,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .primary { background: var(--fire); color: #1a0f06; border: 0; }
 .primary:disabled { background: #6b5a48; color: #2a2016; cursor: not-allowed; }
 .secondary { background: transparent; border: 1px solid var(--line); }
+.setting { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 13px; color: var(--parchment-dim); flex-wrap: wrap; }
+.setting select {
+  min-height: 36px; padding: 0 10px; border-radius: 8px;
+  background: #0c120e; color: var(--parchment); border: 1px solid var(--line); font: inherit;
+}
 .toggle { display: inline-flex; gap: 8px; align-items: center; margin-top: 8px; font-size: 13px; color: var(--parchment-dim); }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 14px; margin: 6px 0 12px; font-size: 13px; }
 .stats div { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(239, 227, 200, 0.1); padding: 3px 0; }

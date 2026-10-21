@@ -32,6 +32,39 @@ await shot('02-wave1');
 const w1 = await g(() => ({ phase: __bts.game.g.phase, wave: __bts.game.g.wave, n: __bts.game.g.crawlers.length }));
 check('round starts and wave 1 spawns 3 crawlers', w1.phase === 'play' && w1.wave === 1 && w1.n === 3, JSON.stringify(w1));
 
+// --- the pause button works with a finger (it was blocked by the touch layer) ---
+const pauseBox = await page.locator('#btn-pause').boundingBox();
+await page.touchscreen.tap(pauseBox.x + pauseBox.width / 2, pauseBox.y + pauseBox.height / 2);
+await wait(300);
+check('pause button responds to a tap', await page.isVisible('#screen-pause'));
+await page.click('#btn-resume');
+await wait(300);
+
+// --- third-person look: drag on the right side turns the camera ---
+const cdp = await ctx.newCDPSession(page);
+const yaw0 = await g(() => __bts.game.rig.yaw);
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 600, y: 250, id: 7 }] });
+for (let i = 1; i <= 10; i++) {
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 600 + i * 15, y: 250, id: 7 }] });
+  await wait(16);
+}
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+await wait(200);
+const yaw1 = await g(() => __bts.game.rig.yaw);
+check('dragging the right side turns the camera', Math.abs(yaw1 - yaw0) > 0.5, `yaw ${yaw0.toFixed(2)} -> ${yaw1.toFixed(2)}`);
+await shot('02b-looked-around');
+
+// --- W walks away from the camera, whichever way it faces ---
+const walk = await g(async () => {
+  const { g, rig } = __bts.game;
+  rig.yaw = Math.PI / 2;          // camera to the east, looking west
+  g.hero.pos.set(0, 0, 0);
+  return true;
+});
+await page.keyboard.down('KeyW'); await wait(400); await page.keyboard.up('KeyW');
+const walked = await g(() => ({ x: __bts.game.g.hero.pos.x, z: __bts.game.g.hero.pos.z }));
+check('movement is relative to the camera', walked.x < -1 && Math.abs(walked.z) < 0.8, JSON.stringify(walked));
+
 // --- cutlass: stand next to a crawler and swing until it goes down ---
 await g(() => {
   const { g } = __bts.game;
@@ -53,6 +86,7 @@ const fireRes = await g(async () => {
   c.life.state = 'downed'; c.life.timer = 0;
   g.hero.pos.set(c.pos.x, 0, c.pos.z + 5);
   g.hero.facing.set(0, -1);
+  __bts.game.rig.yaw = 0;          // camera south, looking north at the pile
   g.hero.arrowKind = 'fire';
   return { ok: true, id: c.id, x: c.pos.x, z: c.pos.z };
 });
@@ -79,6 +113,25 @@ const regrew = await g(async () => {
   return c.life.state;
 });
 check('a downed crawler grows back after ~4s', regrew === 'alive', regrew);
+
+// --- Burn it button: knock one down, stand next to it, tap ---
+const burnSetup = await g(() => {
+  const { g } = __bts.game;
+  const c = g.crawlers.find((k) => k.life.state !== 'burned' && k.life.state !== 'disguised');
+  c.life.state = 'downed'; c.life.timer = 0; c.wasKnocked = true;
+  g.hero.pos.set(c.pos.x + 1.5, 0, c.pos.z);
+  g.hero.fireArrows = 3;
+  return c.id;
+});
+await wait(400);
+const burnLabel = await page.textContent('#btn-interact');
+await shot('03b-burn-it');
+const burnBox = await page.locator('#btn-interact').boundingBox();
+await page.touchscreen.tap(burnBox.x + burnBox.width / 2, burnBox.y + burnBox.height / 2);
+await wait(300);
+const burned = await g((id) => { const c = __bts.game.g.crawlers.find((k) => k.id === id); return c ? c.life.state : 'removed'; }, burnSetup);
+check('Burn it button appears by a downed crawler and burns it', /Burn it/.test(burnLabel) && (burned === 'burned' || burned === 'removed'), `${burnLabel} -> ${burned}`);
+const label = await page.$$eval('.world-label.burn', (n) => n.length);
 
 // --- Hornbill sight: debt, slow time, vignette ---
 await page.keyboard.press('KeyF');
@@ -156,6 +209,20 @@ check('wave 2 arrives with one disguised crawler', w2.wave === 2 && w2.states.fi
 await wait(1500);
 await shot('09-wave2');
 
+// --- winning: clear wave 5 ---
+const won = await g(async () => {
+  const { g } = __bts.game;
+  g.wave = 5;
+  g.waveState = 'fighting';
+  for (const c of g.crawlers) c.life.state = 'burned';
+  await new Promise((r) => setTimeout(r, 600));
+  return g.phase;
+});
+check('clearing wave 5 wins the round', won === 'won' && await page.isVisible('#screen-win'), won);
+await shot('09b-win');
+await page.click('#btn-win-again');
+await wait(2500);
+
 // --- performance: CPU throttled 4x, measure game logic time per frame ---
 const client = await ctx.newCDPSession(page);
 await client.send('Emulation.setCPUThrottlingRate', { rate: 4 });
@@ -211,6 +278,20 @@ await shot('11-pause');
 
 const realErrors = errors.filter((e) => !/GPU stall|swiftshader|WebGL|GL_|Automatic fallback/i.test(e));
 check('no console errors', realErrors.length === 0, realErrors.slice(0, 5).join(' | '));
+
+// --- desktop: High graphics with real shadows ---
+const desk = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+const dp = await desk.newPage();
+dp.on('pageerror', (e) => errors.push(`pageerror(desktop): ${e.message}`));
+await dp.goto(URL, { waitUntil: 'networkidle' });
+await dp.click('#btn-start');
+await dp.waitForTimeout(4500);
+const q = await dp.evaluate(() => ({ key: __bts.quality.key, shadows: __bts.quality.shadows }));
+await dp.screenshot({ path: `${OUT}/12-desktop-high.png` });
+check('computers get High graphics with shadows by default', q.key === 'high' && q.shadows, JSON.stringify(q));
+await dp.close();
+const realErrors2 = errors.filter((e) => !/GPU stall|swiftshader|WebGL|GL_|Automatic fallback/i.test(e));
+check('no errors on desktop either', realErrors2.length === realErrors.length, realErrors2.slice(realErrors.length).join(' | '));
 
 await browser.close();
 const failed = results.filter((r) => !r.ok);

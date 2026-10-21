@@ -47,7 +47,7 @@
         <div id="stick-zone" class="stick-zone">
           <div id="stick-base" class="stick-base hidden"><div id="stick-knob" class="stick-knob"></div></div>
         </div>
-        <div id="swipe-zone" class="swipe-zone"></div>
+        <div id="look-zone" class="look-zone"></div>
         <div class="buttons">
           <button id="btn-interact" class="btn btn-interact hidden">Pay</button>
           <button id="btn-power" class="btn btn-power" aria-label="Hornbill sight">
@@ -72,12 +72,13 @@
           <h1>Behind the Sky</h1>
           <p class="lead">Rattan crawlers rise from the vines and grow back unless burned. The Hornbill lends you its sight. Every gift is a loan, paid at the crossroads.</p>
           <ul class="howto">
-            <li><b>Cut</b> them down, then a <b>fire arrow</b> burns them for good. Light fire arrows at the brazier.</li>
+            <li>Crawlers you <b>cut</b> down grow back after 4 seconds. Stand by the pile and tap <b>Burn it</b>, or shoot a <b>fire arrow</b>. Light fire at the brazier.</li>
+            <li>Survive 5 waves to make the clearing safe.</li>
             <li><b>Sight</b> slows time and shows hidden crawlers, but adds debt. At 100 the dark closes in.</li>
             <li>Pay at the <b>crossroads</b> with rice or iron. Forge better iron at the <b>forge</b> to Sii's drum.</li>
           </ul>
           <button id="btn-start" class="primary">Tap to play</button>
-          <p class="keys">Keyboard: WASD move · J cut · K hold bow · Space roll · F sight · Q arrow · E pay/forge · P pause</p>
+          <p class="keys">Phone: left thumb moves, drag the right side to look around. Keyboard: WASD move · mouse drag or arrow keys look · J cut · K hold bow · Space roll · F sight · Q arrow · E burn/pay/forge · P pause</p>
         </div>
       </div>
 
@@ -90,7 +91,26 @@
             <button id="btn-resume" class="primary">Resume</button>
             <button id="btn-copy" class="secondary">Copy playtest stats</button>
           </div>
+          <label class="setting" for="opt-quality">Graphics
+            <select id="opt-quality">
+              <option value="auto">Auto</option>
+              <option value="high">High (computers)</option>
+              <option value="medium">Medium (phones)</option>
+              <option value="low">Low (older phones)</option>
+            </select>
+            <span id="quality-note"></span>
+          </label>
           <label class="toggle"><input type="checkbox" id="opt-fps" checked /> Show frame rate</label>
+        </div>
+      </div>
+
+      <!-- Win -->
+      <div id="screen-win" class="screen hidden">
+        <div class="panel">
+          <p class="eyebrow">Round complete</p>
+          <h2>The clearing is safe</h2>
+          <p id="win-summary" class="lead"></p>
+          <button id="btn-win-again" class="primary">Another round</button>
         </div>
       </div>
 

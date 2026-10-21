@@ -106,8 +106,33 @@ export const WAVES = {
   breather: 10,
 };
 
+export const CAMERA = {
+  distance: 7,             // metres behind the hero
+  aimDistance: 5,          // pulls in while drawing the bow
+  minDistance: 3,
+  height: 1.6,             // the point the camera orbits (the hero's shoulders)
+  pitch: 0.38,             // radians above the horizon
+  minPitch: 0.08,
+  maxPitch: 1.05,
+  shoulder: 0.6,           // look a little right of the hero
+  sensitivity: 0.006,      // radians per pixel dragged
+  followDelay: 1.2,        // seconds after a drag before the camera drifts back behind the hero
+  followRate: 2.2,
+  edgeAllowance: 2.5,      // how far past the clearing's edge the camera may sit
+  fov: 60,
+  portraitFov: 75,
+};
+
+export const WAVES_PER_ROUND = 5;
+
 export const PERF = {
-  maxPixelRatio: 1.5,
   lowFps: 40,              // drop resolution if the average stays below this
   veryLowFps: 28,
+};
+
+// Graphics levels. "Auto" picks High on computers and Medium on phones.
+export const QUALITY = {
+  high: { label: 'High', antialias: true, maxPixelRatio: 2, minScale: 0.75, shadows: true, shadowMapSize: 2048, trees: 260, grass: 1600, fogNear: 30, fogFar: 90 },
+  medium: { label: 'Medium', antialias: false, maxPixelRatio: 1.5, minScale: 0.6, shadows: false, shadowMapSize: 0, trees: 160, grass: 600, fogNear: 24, fogFar: 66 },
+  low: { label: 'Low', antialias: false, maxPixelRatio: 1, minScale: 0.6, shadows: false, shadowMapSize: 0, trees: 90, grass: 0, fogNear: 18, fogFar: 52 },
 };

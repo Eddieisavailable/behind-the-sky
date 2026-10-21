@@ -5,11 +5,12 @@ import * as THREE from 'three';
 import { FORGE, OFFERING } from './config.js';
 import { buildPattern, createJudge, strike, sweep, isDone, score, levelsEarned } from './rules/rhythm.js';
 import { unlockAudio, audioNow, audioLatency, sfx } from './audio.js';
+import { saveChoice } from './quality.js';
 
 const $ = (id) => document.getElementById(id);
 const RING = 2 * Math.PI * 44;
 
-export function createUi({ stats }) {
+export function createUi({ stats, quality }) {
   const el = {
     hud: $('hud'), controls: $('controls'),
     healthFill: $('health-fill'), healthText: $('health-text'),
@@ -21,7 +22,7 @@ export function createUi({ stats }) {
     toast: $('toast'), fps: $('fps'),
     vignette: $('vignette'), darkness: $('darkness'), hurt: $('hurt'),
     labels: $('labels'),
-    start: $('screen-start'), pause: $('screen-pause'), dead: $('screen-dead'),
+    start: $('screen-start'), pause: $('screen-pause'), dead: $('screen-dead'), win: $('screen-win'),
     crossroads: $('screen-crossroads'), forge: $('screen-forge'), rotate: $('screen-rotate'),
   };
   el.debtRing.style.strokeDasharray = `${RING}`;
@@ -60,10 +61,10 @@ export function createUi({ stats }) {
     });
     const waveLine = s.waveState === 'breather'
       ? (s.wave === 0 ? 'Get ready' : `Next wave in ${Math.ceil(Math.max(0, s.breatherLeft))}`)
-      : `${s.remaining} crawler${s.remaining === 1 ? '' : 's'} left`;
-    set('waveTitle', s.wave === 0 ? 'The clearing' : `Wave ${s.wave}`, (v) => { el.waveTitle.textContent = v; });
+      : `${s.remaining} crawler${s.remaining === 1 ? '' : 's'} left${s.downed ? ` · ${s.downed} down: burn ${s.downed === 1 ? 'it' : 'them'}` : ''}`;
+    set('waveTitle', s.wave === 0 ? 'The clearing' : `Wave ${s.wave} of ${s.totalWaves}`, (v) => { el.waveTitle.textContent = v; });
     set('waveSub', waveLine, (v) => { el.waveSub.textContent = v; });
-    const interact = s.nearby === 'crossroads' ? (s.owes ? `Pay the Hornbill (${s.debt})` : 'Crossroads') : s.nearby === 'forge' ? 'Use the forge' : null;
+    const interact = s.nearby === 'burn' ? (s.fireLeft > 0 ? `Burn it (${s.fireLeft} fire)` : 'No fire: go to the brazier') : s.nearby === 'crossroads' ? (s.owes ? `Pay the Hornbill (${s.debt})` : 'Crossroads') : s.nearby === 'forge' ? 'Use the forge' : null;
     set('interact', interact, (v) => {
       el.btnInteract.classList.toggle('hidden', !v);
       if (v) el.btnInteract.textContent = v;
@@ -121,6 +122,14 @@ export function createUi({ stats }) {
       ['Seconds under 30 fps', f.lowSeconds],
     ];
     $('stats').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+  }
+
+  const clock = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+  function win({ seconds, burned, debt, forge }) {
+    $('win-summary').textContent = `You burned ${burned} crawlers in ${clock(seconds)}`
+      + `${debt > 0 ? `, but you still owe the Hornbill ${debt}` : ' and owe the Hornbill nothing'}. Forge level ${forge}.`;
+    setVignette(false);
+    show(el.win);
   }
 
   function dead({ wave, seconds, burned }) {
@@ -275,19 +284,24 @@ export function createUi({ stats }) {
   const labelEls = new Map();
   const v = new THREE.Vector3();
   function labels(anchors, camera, w, h) {
+    const seen = new Set();
     for (const a of anchors) {
+      seen.add(a.key);
       let node = labelEls.get(a.key);
       if (!node) {
         node = document.createElement('div');
-        node.className = 'world-label';
-        node.textContent = a.text;
+        node.className = `world-label${a.cls ? ` ${a.cls}` : ''}`;
         el.labels.appendChild(node);
         labelEls.set(a.key, node);
       }
+      if (node.textContent !== a.text) node.textContent = a.text;
       v.set(a.x, a.y, a.z).project(camera);
       const onScreen = v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1;
       node.style.display = onScreen ? '' : 'none';
       if (onScreen) node.style.transform = `translate(${(v.x * 0.5 + 0.5) * w}px, ${(-v.y * 0.5 + 0.5) * h}px) translate(-50%, -100%)`;
+    }
+    for (const [key, node] of labelEls) {
+      if (!seen.has(key)) { node.remove(); labelEls.delete(key); }
     }
   }
 
@@ -298,6 +312,15 @@ export function createUi({ stats }) {
     $('btn-resume').addEventListener('click', () => { hide(el.pause); game.resume(); });
     $('btn-pause').addEventListener('click', () => pause());
     $('btn-again').addEventListener('click', () => { hide(el.dead); onStart(); });
+    $('btn-win-again').addEventListener('click', () => { hide(el.win); onStart(); });
+    const q = $('opt-quality');
+    q.value = quality.choice;
+    $('quality-note').textContent = quality.choice === 'auto' ? `now ${quality.label}` : '';
+    q.addEventListener('change', () => {
+      saveChoice(q.value);
+      $('quality-note').textContent = 'Restarting with the new setting…';
+      setTimeout(() => location.reload(), 400);
+    });
     $('btn-pay-rice').addEventListener('click', () => pay('rice'));
     $('btn-pay-iron').addEventListener('click', () => pay('iron'));
     $('btn-cr-close').addEventListener('click', () => closeMenu(el.crossroads));
@@ -309,7 +332,7 @@ export function createUi({ stats }) {
       el.fps.classList.toggle('hidden', !showFps);
     });
     $('btn-copy').addEventListener('click', async () => {
-      const text = stats.report({ renderScale: renderScale.toFixed(2) });
+      const text = stats.report({ renderScale: renderScale.toFixed(2), quality: quality.key });
       try {
         await navigator.clipboard.writeText(text);
         toast('Stats copied. Paste them into WhatsApp or an email.', 2600);
@@ -338,5 +361,5 @@ export function createUi({ stats }) {
     el.rotate.classList.toggle('hidden', !(touch && innerHeight > innerWidth));
   }
 
-  return { hud, toast, setVignette, setDarkness, hurt, setFps, pause, dead, openCrossroads, openForge, labels, bind, enterPlay, checkOrientation };
+  return { hud, toast, setVignette, setDarkness, hurt, setFps, pause, dead, win, openCrossroads, openForge, labels, bind, enterPlay, checkOrientation };
 }

@@ -81,5 +81,7 @@ export function blobShadow(radius) {
   m.rotation.x = -Math.PI / 2;
   m.position.y = 0.02;
   m.scale.setScalar(radius);
+  m.userData.noShadow = true;
+  m.userData.blob = true;
   return m;
 }

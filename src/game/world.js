@@ -2,7 +2,7 @@
 // Gray-box on purpose: plain shapes and flat colours, cheap to draw on a low-end phone.
 
 import * as THREE from 'three';
-import { ARENA, PERF } from '../config.js';
+import { ARENA } from '../config.js';
 
 export const COLORS = {
   sky: 0x1d2b1f,
@@ -21,28 +21,50 @@ export const COLORS = {
   hero: 0xd9822b,
 };
 
-export function createRenderer(canvas) {
+export function createRenderer(canvas, quality) {
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: window.devicePixelRatio <= 1,
+    antialias: quality.antialias,
     powerPreference: 'high-performance',
     stencil: false,
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, PERF.maxPixelRatio));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, quality.maxPixelRatio));
   renderer.setClearColor(COLORS.sky);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  if (quality.shadows) {
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  }
   return renderer;
 }
 
-export function createWorld() {
+/** Mark every mesh in an object as casting (and optionally receiving) real shadows. */
+export function castShadows(obj, receive = false) {
+  obj.traverse((o) => {
+    if (o.isMesh && !o.userData.noShadow) {
+      o.castShadow = true;
+      if (receive) o.receiveShadow = true;
+    }
+  });
+}
+
+export function createWorld(quality) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(COLORS.sky);
-  scene.fog = new THREE.Fog(COLORS.sky, 26, 62);
+  scene.fog = new THREE.Fog(COLORS.sky, quality.fogNear, quality.fogFar);
 
-  scene.add(new THREE.HemisphereLight(0xcfe3c0, 0x2a2118, 1.6));
-  const sun = new THREE.DirectionalLight(0xfff0d6, 1.5);
+  scene.add(new THREE.HemisphereLight(0xcfe3c0, 0x2a2118, quality.shadows ? 1.3 : 1.6));
+  const sun = new THREE.DirectionalLight(0xfff0d6, quality.shadows ? 2.1 : 1.5);
   sun.position.set(-12, 25, 10);
-  scene.add(sun);
+  scene.add(sun, sun.target);
+  if (quality.shadows) {
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize);
+    const c = sun.shadow.camera;
+    c.left = -22; c.right = 22; c.top = 22; c.bottom = -22; c.near = 1; c.far = 70;
+    sun.shadow.bias = -0.0006;
+    sun.shadow.normalBias = 0.04;
+  }
 
   const obstacles = []; // { x, z, r } circles the hero and crawlers can't walk through
 
@@ -52,6 +74,7 @@ export function createWorld() {
     new THREE.MeshLambertMaterial({ color: COLORS.ground }),
   );
   ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = quality.shadows;
   scene.add(ground);
   const floor = new THREE.Mesh(
     new THREE.RingGeometry(ARENA.radius + 2.9, 80, 48, 1),
@@ -61,17 +84,65 @@ export function createWorld() {
   floor.position.y = -0.01;
   scene.add(floor);
 
-  addTrees(scene);
+  addTrees(scene, quality);
   const crossroads = addCrossroads(scene, obstacles);
   const brazier = addBrazier(scene, obstacles);
   const forge = addForge(scene, obstacles);
   const vines = addVineClumps(scene, obstacles);
+  if (quality.grass) addGrass(scene, quality.grass, obstacles);
+  if (quality.shadows) for (const g of [crossroads.group, brazier.group, forge.group]) castShadows(g, true);
 
-  return { scene, obstacles, crossroads, brazier, forge, vines, sun };
+  /** Keep the sun's shadow box centred on the hero. */
+  function followSun(x, z) {
+    if (!quality.shadows) return;
+    sun.position.set(x - 12, 25, z + 10);
+    sun.target.position.set(x, 0, z);
+  }
+
+  return { scene, obstacles, crossroads, brazier, forge, vines, sun, followSun };
 }
 
-function addTrees(scene) {
-  const count = 150;
+function addGrass(scene, count, obstacles) {
+  // short blades: thin three-sided cones, tinted per instance
+  const geo = new THREE.ConeGeometry(0.06, 0.45, 3);
+  geo.translate(0, 0.22, 0);
+  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: 0xffffff }), count);
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const e = new THREE.Euler();
+  const s = new THREE.Vector3();
+  const p = new THREE.Vector3();
+  const c = new THREE.Color();
+  const a1 = new THREE.Color(0x4f7a34);
+  const a2 = new THREE.Color(0x2f4d22);
+  let seed = 29;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  let i = 0;
+  while (i < count) {
+    const a = rnd() * Math.PI * 2;
+    const d = Math.sqrt(rnd()) * (ARENA.radius + 2);
+    const x = Math.cos(a) * d;
+    const z = Math.sin(a) * d;
+    if (obstacles.some((o) => Math.hypot(o.x - x, o.z - z) < o.r + 0.3)) continue;
+    // keep the crossroads paths bare
+    const cx = x - ARENA.crossroads.x;
+    const cz = z - ARENA.crossroads.z;
+    if ((Math.abs(cx) < 1.7 && cz < 2) || (Math.abs(cz) < 1.7 && Math.abs(cx) < 11)) continue;
+    p.set(x, 0, z);
+    q.setFromEuler(e.set((rnd() - 0.5) * 0.5, rnd() * Math.PI, (rnd() - 0.5) * 0.5));
+    const k = 0.6 + rnd() * 0.9;
+    s.set(k, k * (0.7 + rnd() * 0.8), k);
+    m.compose(p, q, s);
+    mesh.setMatrixAt(i, m);
+    mesh.setColorAt(i, c.copy(a2).lerp(a1, rnd()));
+    i += 1;
+  }
+  mesh.userData.noShadow = true;
+  scene.add(mesh);
+}
+
+function addTrees(scene, quality) {
+  const count = quality.trees;
   const trunkGeo = new THREE.CylinderGeometry(0.35, 0.55, 5, 6);
   trunkGeo.translate(0, 2.5, 0);
   const canopyGeo = new THREE.ConeGeometry(2.6, 7, 7);
@@ -105,6 +176,10 @@ function addTrees(scene) {
     canopies.setMatrixAt(i, m);
     canopies.setColorAt(i, c.copy(dark).lerp(light, rnd()));
     i += 1;
+  }
+  if (quality.shadows) {
+    trunks.castShadow = true;
+    canopies.castShadow = true;
   }
   scene.add(trunks, canopies);
 }

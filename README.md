@@ -4,18 +4,20 @@ An action game rooted in Kpelle folklore and the Woi epic. This repo is **phase 
 
 > Is *fight, spend spirit power, pay it back at the crossroads* fun on a cheap phone?
 
-Plain shapes, no story, one arena. Design docs: the story bible and the *Core Loop and Slice* doc.
+Third-person camera, plain shapes, no story, one arena. Characters, the world and every design will be made in Blender in phase 4 and loaded as glTF. Design docs: the story bible and the *Core Loop and Slice* doc.
 
 ## What's in it
 
 | System | Where |
 | --- | --- |
 | Arena: clearing, crossroads, brazier, forge, vine clumps | `src/game/world.js` |
-| Hero: joystick, cutlass three-hit combo, bow (hold and release), roll | `src/game/hero.js`, `src/game/game.js` |
-| Rattan crawlers that grow back unless burned; one hides as a vine post from wave 2 | `src/game/crawlers.js`, `src/rules/crawlerLife.js` |
+| Third-person camera: drag to look, drifts back behind the hero, stays out of the trees | `src/game/camera.js` |
+| Hero: camera-relative joystick, cutlass three-hit combo, bow aimed where you look, roll | `src/game/hero.js`, `src/game/game.js` |
+| Rattan crawlers that grow back after 4 s unless burned (countdown over each pile, **Burn it** button up close); one hides as a vine post from wave 2; 5 waves win the round | `src/game/crawlers.js`, `src/rules/crawlerLife.js` |
 | Hornbill sight: slows time, shows hidden crawlers, adds 15 debt; at 100 the dark closes in | `src/rules/debt.js` |
 | Paying at the crossroads with rice or iron; bond levels | `src/rules/debt.js`, `src/ui.js` |
 | Rhythm forge: 30 seconds to Sii's slit-drum, better iron | `src/rules/rhythm.js`, `src/ui.js` |
+| Graphics levels: Auto, High (computers: shadows, anti-aliasing, dense grass), Medium (phones), Low | `src/quality.js`, `src/config.js` |
 | Frame-rate counter and automatic resolution drop | `src/main.js` |
 | Playtest stats kept on the phone, copyable from the pause screen | `src/stats.js` |
 
@@ -23,9 +25,9 @@ Every tuning number is in `src/config.js`.
 
 ## Controls
 
-**Phone (landscape):** left thumb anywhere = joystick · **Cut** · **Bow** (hold to aim, release) · **Roll** (or swipe on the right side) · **Sight** (the ring is your debt) · **Iron/Fire** switches arrows · **Pay / Use the forge** appears when you are close.
+**Phone (landscape):** left thumb anywhere = joystick · drag the right side to look around · **Cut** · **Bow** (hold to aim where the camera looks, release) · **Roll** · **Sight** (the ring is your debt) · **Iron/Fire** switches arrows · **Burn it / Pay / Use the forge** appears when you are close.
 
-**Keyboard:** WASD move · J cut · K hold bow · Space roll · F sight · Q switch arrow · E pay/forge · P pause.
+**Keyboard and mouse:** WASD move · drag the mouse or arrow keys to look · J cut · K hold bow · Space roll · F sight · Q switch arrow · E burn/pay/forge · P pause.
 
 ## Run it
 

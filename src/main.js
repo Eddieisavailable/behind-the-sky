@@ -6,22 +6,24 @@ import { createUi } from './ui.js';
 import { createStats } from './stats.js';
 import { unlockAudio } from './audio.js';
 import { PERF } from './config.js';
+import { resolveQuality } from './quality.js';
 
 const $ = (id) => document.getElementById(id);
 
+const quality = resolveQuality();
 const stats = createStats();
-const ui = createUi({ stats });
+const ui = createUi({ stats, quality });
 const input = createInput({
-  stickZone: $('stick-zone'), stickBase: $('stick-base'), stickKnob: $('stick-knob'), swipeZone: $('swipe-zone'),
+  stickZone: $('stick-zone'), stickBase: $('stick-base'), stickKnob: $('stick-knob'), lookZone: $('look-zone'),
   btnAttack: $('btn-attack'), btnDodge: $('btn-dodge'), btnBow: $('btn-bow'), btnPower: $('btn-power'),
   btnArrow: $('btn-arrow'), btnInteract: $('btn-interact'),
 });
 const canvas = $('scene');
-const renderer = createRenderer(canvas);
-const game = createGame({ input, ui, stats });
+const renderer = createRenderer(canvas, quality);
+const game = createGame({ input, ui, stats, quality });
 
 // ---- sizing and adaptive resolution ----
-const basePixelRatio = Math.min(window.devicePixelRatio, PERF.maxPixelRatio);
+const basePixelRatio = Math.min(window.devicePixelRatio, quality.maxPixelRatio);
 let scale = 1;
 function resize() {
   const w = window.innerWidth;
@@ -75,8 +77,8 @@ function frame(now) {
   if (windowTime >= 2) {
     const fps = windowFrames / windowTime;
     if (game.g.phase === 'play') stats.sampleFps(fps, windowTime);
-    if (fps < PERF.lowFps && scale > 0.6) {
-      scale = Math.max(0.6, scale - (fps < PERF.veryLowFps ? 0.25 : 0.15));
+    if (fps < PERF.lowFps && scale > quality.minScale) {
+      scale = Math.max(quality.minScale, scale - (fps < PERF.veryLowFps ? 0.25 : 0.15));
       resize();
       goodWindows = 0;
     } else if (fps > 56 && scale < 1) {
@@ -99,4 +101,4 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 }
 
 // handle for automated tests and for poking at tuning in the console
-window.__bts = { game, stats, input };
+window.__bts = { game, stats, input, quality };
