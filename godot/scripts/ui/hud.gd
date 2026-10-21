@@ -7,6 +7,7 @@ extends CanvasLayer
 signal interact_pressed
 signal resume_pressed
 signal quit_pressed
+signal quality_changed(q: String)
 
 var stick := Vector2.ZERO          # touch move, x right, y down, length ≤ 1
 var look_drag := Vector2.ZERO      # touch look, pixels since last frame; read and cleared by Main
@@ -181,7 +182,7 @@ func _build_pause(root: Control) -> void:
 	_pause.visible = false
 	root.add_child(_pause)
 	var box := VBoxContainer.new()
-	_pin(box, Control.PRESET_CENTER, -170, -140, 170, 140)
+	_pin(box, Control.PRESET_CENTER, -170, -170, 170, 170)
 	box.add_theme_constant_override("separation", 14)
 	_pause.add_child(box)
 	box.add_child(_text(40, Color(1, 0.95, 0.85), "Paused"))
@@ -193,6 +194,15 @@ func _build_pause(root: Control) -> void:
 		var sig: Signal = b[1]
 		btn.pressed.connect(func(): sig.emit())
 		box.add_child(btn)
+	var gfx := OptionButton.new()
+	gfx.name = "Graphics"
+	gfx.custom_minimum_size = Vector2(320, 48)
+	gfx.add_theme_font_size_override("font_size", 20)
+	for q in Look.QUALITIES:
+		gfx.add_item("Graphics: " + q.capitalize())
+	gfx.select(Look.QUALITIES.find(Look.current()))
+	gfx.item_selected.connect(func(i: int): quality_changed.emit(Look.QUALITIES[i]))
+	box.add_child(gfx)
 	box.add_child(_text(16, Color(1, 1, 1, 0.7), "WASD or arrows: walk   ·   mouse: look   ·   wheel: zoom\nE: talk   ·   Esc: pause   ·   gamepad works too"))
 
 func _text(size: int, color: Color, text := "") -> Label:

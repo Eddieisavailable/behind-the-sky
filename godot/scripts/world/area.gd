@@ -11,19 +11,10 @@ extends Node3D
 const WORLD_LAYER := 1
 const HERO_LAYER := 2
 
-## Time of day: sky and fog colour, fog start and end, ambient light, sun colour, strength and direction.
-const MOODS := {
-	"morning": { "sky": 0xb7c7c9, "fog": [45, 140], "ambient": [0xfff1dc, 0x5a4630, 1.45], "sun": [0xffe0b0, 2.0, Vector3(-25, 30, 18)] },
-	"day": { "sky": 0xa8c9d8, "fog": [50, 150], "ambient": [0xf4f8ff, 0x5a4a30, 1.55], "sun": [0xfff2d6, 2.2, Vector3(-18, 34, 12)] },
-	"dusk": { "sky": 0x7a5f68, "fog": [30, 95, 0x6a5058], "ambient": [0xffc49a, 0x2e2018, 1.2], "sun": [0xff9a55, 1.7, Vector3(30, 12, -20)] },
-	"bush": { "sky": 0x1f3324, "fog": [10, 52], "ambient": [0xa6d0a0, 0x18120c, 1.15], "sun": [0xe8f0c0, 0.9, Vector3(-10, 40, 6)] },
-	"afternoon": { "sky": 0xb2cbc4, "fog": [45, 140], "ambient": [0xfff4e4, 0x4a4030, 1.5], "sun": [0xffe6c0, 2.0, Vector3(20, 26, 14)] },
-	"night": { "sky": 0x16243a, "fog": [22, 90], "ambient": [0x8aa2d8, 0x1a1610, 1.55], "sun": [0xb8ccff, 1.4, Vector3(-20, 40, -10)] },
-}
-
 @export var area_name := ""
 @export var subtitle := ""
 @export var arrive := ""
+## Time of day: one of Look.MOODS.
 @export var mood := "morning"
 @export var radius := 30.0
 ## Press to lay the area out again after editing its script.
@@ -285,34 +276,19 @@ func _flat(color: int) -> StandardMaterial3D:
 	m.roughness = 1.0
 	return m
 
+## Swap the lighting for the current Look quality (after a graphics change).
+func refresh_look() -> void:
+	for n in ["Mood", "Sun"]:
+		var old := _layout.get_node_or_null(n)
+		if old:
+			old.free()
+	_apply_mood()
+
 func _apply_mood() -> void:
-	var m: Dictionary = MOODS[mood]
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = col(m.sky)
-	# the prototype lit with a sky/ground hemisphere; a flat ambient between the two stands in for now
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = col(m.ambient[0]).lerp(col(m.ambient[1]), 0.35)
-	env.ambient_light_energy = m.ambient[2] * 0.36
-	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
-	env.fog_enabled = true
-	env.fog_mode = Environment.FOG_MODE_DEPTH
-	env.fog_light_color = col(m.fog[2] if m.fog.size() > 2 else m.sky)
-	env.fog_density = 1.0
-	env.fog_depth_begin = m.fog[0]
-	env.fog_depth_end = m.fog[1]
-	env.fog_sky_affect = 0.0
 	var we := WorldEnvironment.new()
 	we.name = "Mood"
-	we.environment = env
+	we.environment = Look.environment(mood)
 	_layout.add_child(we)
-	var sun := DirectionalLight3D.new()
-	sun.name = "Sun"
-	sun.light_color = col(m.sun[0])
-	sun.light_energy = m.sun[1] * 0.42
-	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	sun.directional_shadow_max_distance = 60.0
-	sun.shadow_bias = 0.04
+	var sun := Look.sun(mood)
 	_layout.add_child(sun)
-	sun.look_at_from_position(m.sun[2], Vector3.ZERO)
+	Look.aim_sun(sun)

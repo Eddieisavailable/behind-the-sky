@@ -27,6 +27,8 @@ func _ready() -> void:
 	hud.interact_pressed.connect(_interact)
 	hud.resume_pressed.connect(func(): _set_paused(false))
 	hud.quit_pressed.connect(func(): get_tree().quit())
+	hud.quality_changed.connect(_set_quality)
+	Look.apply_viewport(get_viewport())
 	hero = Hero.new()
 	hero.setup(hero_key)
 	cam = FollowCamera.new()
@@ -96,6 +98,11 @@ func _set_paused(on: bool) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif not hud.touch_mode:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _set_quality(q: String) -> void:
+	Look.quality = q
+	Look.apply_viewport(get_viewport())
+	area.refresh_look()
 
 ## Pause when the window loses focus or the phone app goes to the background.
 func _notification(what: int) -> void:
