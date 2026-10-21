@@ -40,8 +40,15 @@ Every model is built by a Python script in `blender/`, so it can be rebuilt, twe
 | Meni-maa-fa, true form | `blender/meni_true.py` | Idle, Run, Slash1-3, Block, Offer, Taunt, Hurt, Death, Flee |
 | Rattan Bull (mini-boss) | `blender/rattan_bull.py` | Idle, Walk, Windup, Charge, Stunned, Collapse, Rebuild |
 | Night bat | `blender/bat.py` | Fly, Dive, Fall |
+| Iron-Stone Genie (`GiftStone` part) | `blender/genie_iron.py` | Idle, Walk, Smash, Grant |
+| Driver-Ant Genie | `blender/genie_ant.py` | Idle, Walk, Grant, Swarm |
+| Gelengol, with her stool and bowls (`Bowl` part) | `blender/gelengol.py` | Sit, Sing, Offer |
+| The River Woman (`Comb` part) | `blender/river_woman.py` | Comb, Startled, Speak, Dive |
+| Kelema-ninga, the firebird | `blender/kelema.py` | Idle, Fly, Land, Speak |
+| The swamp (10 pieces, incl. the River Woman's rocks and the lizard's lair) | `blender/swamp.py` | static |
+| The bele tree: `Trunk`, `Platform1-12`, `Vine1-11`, `CutBranch1-3`, `Canopy`, `RiceSack1-5` | `blender/bele_tree.py` | static |
 
-The boss, the Rattan Bull and the bats are built but not in play yet: their areas (the swamp and the bele tree) come next. The game loads them with `loadModel(name)` when an area needs them.
+Everything from Meni-maa-fa down is built but not in play yet: the areas they belong to (the crossroads, the river rocks, the deep bush, the swamp and the bele tree) come next. The game loads them with `loadModel(name)` when an area needs them; glowing parts use a material named `Glow`.
 
 Style: stylized low-poly, flat-shaded vertex colours, one skinned mesh per character (one draw call on a phone), every part bound to one bone like a carved puppet. Preview renders are in `blender/previews/`.
 

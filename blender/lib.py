@@ -366,3 +366,18 @@ def static_part(name: str, body: "Body", materials, arm, bone: str):
     obj.data.name = name
     attach_to_bone(obj, arm, bone, Matrix.Identity(4))
     return obj
+
+
+def aim_edge(arm, bone, d, chord=(0, 1, 0), want=(0, 0, -1)):
+    """Like aim(), then turn the bone about its own length so that `chord` (a direction across the
+    part at rest, e.g. a wing's trailing edge) ends up facing `want`. For folding wings flat."""
+    R = arm.data.bones[bone].matrix_local.to_3x3()
+    c = R.inverted() @ Vector(chord)
+    base = Vector((0, 1, 0)).rotation_difference((R.inverted() @ Vector(d)).normalized())
+    best, score = 0, -9
+    for tw in range(-180, 180, 5):
+        q = base @ Quaternion((0, 1, 0), math.radians(tw))
+        s = (R @ (q @ c)).normalized().dot(Vector(want).normalized())
+        if s > score:
+            best, score = tw, s
+    return aim(arm, bone, d, best)

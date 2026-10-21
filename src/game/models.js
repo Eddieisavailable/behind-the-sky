@@ -22,8 +22,8 @@ export async function loadModel(name) {
 
 /** What the clearing needs at start. Later areas' creatures load when the player reaches them. */
 export const STARTUP_MODELS = ['korto', 'flomo', 'hornbill', 'crawler', 'sii', 'environment'];
-/** Built and ready, used by areas not made yet: the boss, the mini-boss and the night bats. */
-export const LATER_MODELS = ['meni_lizard', 'meni_true', 'rattan_bull', 'bat'];
+/** Built and ready for areas not made yet: the boss, mini-boss, bats, the other genii, Gelengol, the River Woman, Kelema-ninga, the swamp and the bele tree. */
+export const LATER_MODELS = ['meni_lizard', 'meni_true', 'rattan_bull', 'bat', 'genie_iron', 'genie_ant', 'gelengol', 'river_woman', 'kelema', 'swamp', 'bele_tree'];
 
 export async function loadModels(names = STARTUP_MODELS) {
   try {
@@ -36,6 +36,9 @@ export async function loadModels(names = STARTUP_MODELS) {
 }
 
 export function convert(m, lambert) {
+  // glowing parts (eyes, embers, spirit marks): drawn in their own colour, unlit. A strong emissive
+  // on a lit material washes out to white.
+  if (m.name === 'Glow') return new THREE.MeshBasicMaterial({ name: m.name, color: m.emissive.clone() });
   if (!lambert) return m.clone();
   // Lambert is cheaper per pixel: used on Medium and Low graphics
   return new THREE.MeshLambertMaterial({
