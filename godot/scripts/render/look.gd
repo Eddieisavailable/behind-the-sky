@@ -44,7 +44,16 @@ static func current() -> String:
 static func default_quality() -> String:
 	if OS.has_feature("mobile") or RenderingServer.get_current_rendering_method() != "forward_plus":
 		return "low"
+	# Laptop graphics built into the processor (Intel Iris Xe and the like) can't carry High:
+	# bounced light and haze cost too much there, and some Intel drivers draw them washed out.
+	if is_integrated_gpu():
+		return "medium"
 	return "high"
+
+static func is_integrated_gpu() -> bool:
+	var name := RenderingServer.get_video_adapter_name().to_lower()
+	return RenderingServer.get_video_adapter_type() == RenderingDevice.DEVICE_TYPE_INTEGRATED_GPU \
+		or name.contains("intel") or name.contains("uhd") or name.contains("iris")
 
 static func col(hex: int) -> Color:
 	return Color.hex((hex << 8) | 0xff)

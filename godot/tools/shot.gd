@@ -6,6 +6,8 @@ func _initialize():
 	for a in OS.get_cmdline_user_args():
 		var kv := a.split("=")
 		args[kv[0]] = kv[1]
+	if args.has("quality"):
+		Look.quality = args.quality
 	var scene: Node = load(args.get("scene", "res://scenes/main.tscn")).instantiate()
 	root.add_child(scene)
 	await process_frame   # let the scene's _ready run first

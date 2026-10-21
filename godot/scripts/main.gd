@@ -82,6 +82,10 @@ func _process(dt: float) -> void:
 func _unhandled_input(e: InputEvent) -> void:
 	if e.is_action_pressed("pause"):
 		_set_paused(not get_tree().paused)
+	elif e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_F3:
+		var i := (Look.QUALITIES.find(Look.current()) + 1) % Look.QUALITIES.size()
+		_set_quality(Look.QUALITIES[i])
+		hud.toast("Graphics: " + Look.current().capitalize(), 1.5)
 	elif e.is_action_pressed("interact"):
 		_interact()
 	elif e is InputEventMouseButton and e.pressed and e.device != InputEvent.DEVICE_ID_EMULATION and not get_tree().paused:

@@ -24,6 +24,7 @@ var _say_line: Label
 var _toast: Label
 var _pause: Control
 var _fps: Label
+var _gfx: OptionButton
 var _stick_base: Panel
 var _stick_knob: Panel
 var _stick_finger := -1
@@ -80,7 +81,7 @@ func _ready() -> void:
 
 	_fps = _text(14, Color(1, 1, 1, 0.6))
 	_fps.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_pin(_fps, Control.PRESET_TOP_RIGHT, -160, 10, -14, 30)
+	_pin(_fps, Control.PRESET_TOP_RIGHT, -220, 10, -14, 30)
 	root.add_child(_fps)
 
 	_action = Button.new()
@@ -100,7 +101,7 @@ func _ready() -> void:
 	_build_pause(root)
 
 func _process(dt: float) -> void:
-	_fps.text = "%d fps" % Engine.get_frames_per_second()
+	_fps.text = "%d fps · %s" % [Engine.get_frames_per_second(), Look.current().capitalize()]
 	_title_left -= dt
 	_title_box.modulate.a = clampf(_title_left, 0.0, 1.0)
 	_say_left -= dt
@@ -135,6 +136,7 @@ func toast(text: String, seconds := 3.0) -> void:
 
 func show_pause(on: bool) -> void:
 	_pause.visible = on
+	_gfx.select(Look.QUALITIES.find(Look.current()))
 
 func is_paused_menu() -> bool:
 	return _pause.visible
@@ -202,8 +204,9 @@ func _build_pause(root: Control) -> void:
 		gfx.add_item("Graphics: " + q.capitalize())
 	gfx.select(Look.QUALITIES.find(Look.current()))
 	gfx.item_selected.connect(func(i: int): quality_changed.emit(Look.QUALITIES[i]))
+	_gfx = gfx
 	box.add_child(gfx)
-	box.add_child(_text(16, Color(1, 1, 1, 0.7), "WASD or arrows: walk   ·   mouse: look   ·   wheel: zoom\nE: talk   ·   Esc: pause   ·   gamepad works too"))
+	box.add_child(_text(16, Color(1, 1, 1, 0.7), "WASD or arrows: walk   ·   mouse: look   ·   wheel: zoom\nE: talk   ·   F3: graphics   ·   Esc: pause   ·   gamepad works too"))
 
 func _text(size: int, color: Color, text := "") -> Label:
 	var l := Label.new()
