@@ -282,6 +282,16 @@ await shot('11-pause');
 const realErrors = errors.filter((e) => !/GPU stall|swiftshader|WebGL|GL_|Automatic fallback/i.test(e));
 check('no console errors', realErrors.length === 0, realErrors.slice(0, 5).join(' | '));
 
+// --- the second hero and the Hornbill ---
+const pickedFlomo = await g(() => { const gm = __bts.game; gm.setHero('flomo'); gm.start(); const h = gm.g.hero; return { name: h.name, hp: h.maxHealth, speed: h.speed }; });
+check('Flomo can be chosen: slower, tougher', pickedFlomo.name === 'Flomo' && pickedFlomo.hp > 100 && pickedFlomo.speed < 6.5, JSON.stringify(pickedFlomo));
+const perched = await g(() => __bts.game.hornbill.state);
+await g(() => { const gm = __bts.game; gm.g.waveState = 'breather'; gm.g.breatherLeft = 999; gm.g.genie.activeFor = 20; });
+let birdState = perched;
+for (let i = 0; i < 40 && birdState !== 'circling'; i++) { await frames(5); birdState = await g(() => __bts.game.hornbill.state); }
+check('the Hornbill leaves its perch and circles while its sight is lent', perched === 'perched' && birdState === 'circling', `${perched} -> ${birdState}`);
+await g(() => { __bts.game.setHero('korto'); });
+
 // --- desktop: High graphics with real shadows ---
 const desk = await browser.newContext({ viewport: { width: 1280, height: 720 } });
 const dp = await desk.newPage();

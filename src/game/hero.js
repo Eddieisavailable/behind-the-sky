@@ -1,14 +1,14 @@
-// Korto: movement, roll, cutlass swings and the bow. Combat results are worked
+// The hero (Korto or Flomo): movement, roll, cutlass swings and the bow. Combat results are worked
 // out in game.js; this file owns the body and how it moves.
 
 import * as THREE from 'three';
-import { HERO, BOW } from '../config.js';
+import { HERO, HEROES, BOW } from '../config.js';
 import { COLORS } from './world.js';
 import { blobShadow } from './fx.js';
 import { createCombo } from '../rules/combo.js';
 import { instantiate, Animator, setGlow } from './models.js';
 
-export function createHero(scene, models = null, quality = {}) {
+export function createHero(scene, models = null, quality = {}, kind = HEROES.korto) {
   const group = new THREE.Group();
   const bodyMat = new THREE.MeshLambertMaterial({ color: COLORS.hero, emissive: 0x000000 });
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.9, 4, 10), bodyMat);
@@ -48,8 +48,9 @@ export function createHero(scene, models = null, quality = {}) {
   let model = null;
   let anim = null;
   let bowNode = null;
-  if (models?.korto) {
-    model = instantiate(models.korto, { lambert: quality.key !== 'high' });
+  const gltf = models?.[kind.key] ?? models?.korto;
+  if (gltf) {
+    model = instantiate(gltf, { lambert: quality.key !== 'high', scale: kind.scale });
     group.add(model.object);
     for (const part of [body, head, wrap, nose, pivot, bow]) part.visible = false;
     anim = new Animator(model.root, model.clips);
@@ -76,8 +77,12 @@ export function createHero(scene, models = null, quality = {}) {
     animStep: -1,
     pos: new THREE.Vector3(0, 0, 4),
     facing: new THREE.Vector2(0, -1),   // unit vector on the ground (x, z)
-    health: HERO.health,
-    maxHealth: HERO.health,
+    kind,
+    name: kind.name,
+    speed: kind.speed,
+    damage: kind.damage,
+    health: kind.health,
+    maxHealth: kind.health,
     radius: HERO.radius,
     dodgeLeft: 0,
     dodgeDir: new THREE.Vector2(),

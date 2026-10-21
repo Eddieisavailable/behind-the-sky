@@ -3,9 +3,10 @@
 // this file through the `ui` object passed in.
 
 import * as THREE from 'three';
-import { ARENA, HERO, CUTLASS, BOW, DROPS, HORNBILL, FORGE, WAVES, WAVES_PER_ROUND, CAMERA } from '../config.js';
+import { ARENA, HERO, HEROES, CUTLASS, BOW, DROPS, HORNBILL, FORGE, WAVES, WAVES_PER_ROUND, CAMERA } from '../config.js';
 import { createWorld, resolveCollisions, castShadows } from './world.js';
 import { dressWorld } from './environment.js';
+import { createHornbill } from './hornbill.js';
 import { createCameraRig, updateRig, look, stickToWorld, cameraBasis } from './camera.js';
 import { createHero, poseHero, faceToward } from './hero.js';
 import { createCrawler, updateCrawler, removeCrawler } from './crawlers.js';
@@ -28,6 +29,8 @@ export function createGame({ input, ui, stats, quality, models = null }) {
   const arrows = createArrows(scene);
   const decor = dressWorld(world, models, quality);
   const pickups = createPickups(scene, decor.pickupTemplates);
+  const hornbill = createHornbill(world, models, quality);
+  let heroKey = 'korto';
 
   const g = {
     scene, camera, world, fx,
@@ -51,7 +54,7 @@ export function createGame({ input, ui, stats, quality, models = null }) {
     for (const c of g.crawlers) removeCrawler(scene, c);
     arrows.clear();
     pickups.clear();
-    g.hero = createHero(scene, models, quality);
+    g.hero = createHero(scene, models, quality, HEROES[heroKey] ?? HEROES.korto);
     useRealShadows(g.hero.group);
     g.crawlers = [];
     g.pack = { rice: 0, iron: 0 };
@@ -207,7 +210,7 @@ export function createGame({ input, ui, stats, quality, models = null }) {
         continue;
       }
       const before = st;
-      const after = hitIron(c.life, CUTLASS.damage[step] * mult());
+      const after = hitIron(c.life, CUTLASS.damage[step] * mult() * h.damage);
       landed = true;
       fx.burst(c.pos.x, 1.2, c.pos.z, 'sap', 10, 4);
       if (before === 'disguised') ui.toast('A crawler was hiding as a vine post!', 1800);
@@ -304,6 +307,7 @@ export function createGame({ input, ui, stats, quality, models = null }) {
     if (res.ok) {
       sfx.pay();
       stats.add('offerings', 1);
+      hornbill.call();
       if (res.bondUp) ui.toast(`Your bond with the Hornbill deepens (level ${g.genie.bond}). Its sight lasts longer and costs less.`, 3500);
       ui.setDarkness(debt.isTurned(g.genie) ? 1 : 0);
     }
@@ -333,6 +337,7 @@ export function createGame({ input, ui, stats, quality, models = null }) {
   function update(dt) {
     fx.update(dt);
     decor.update(dt);
+    if (g.phase !== 'paused') hornbill.update(dt, { sight: g.phase === 'play' && g.genie.activeFor > 0, hero: g.hero, camera });
     world.brazier.flame.scale.y = 1 + Math.sin(performance.now() / 90) * 0.12;
     world.brazier.light.intensity = 13 + Math.sin(performance.now() / 70) * 2;
 
@@ -461,7 +466,7 @@ export function createGame({ input, ui, stats, quality, models = null }) {
       h.pos.x += h.dodgeDir.x * HERO.dodge.speed * dt;
       h.pos.z += h.dodgeDir.y * HERO.dodge.speed * dt;
     } else if (moveLen > 0.05) {
-      let speed = HERO.speed;
+      let speed = h.speed;
       if (h.drawing) speed *= HERO.aimSpeedFactor;
       if (combo.isSwinging(h.combo)) speed *= 0.35;
       h.pos.x += mv.x * speed * dt;
@@ -592,7 +597,10 @@ export function createGame({ input, ui, stats, quality, models = null }) {
   return {
     g, scene, camera,
     update, reset, setAspect,
-    start() { reset(); g.phase = 'play'; stats.add('rounds', 1); },
+    start() { reset(); g.phase = 'play'; stats.add('rounds', 1); stats.session.hero = heroKey; },
+    setHero(key) { if (HEROES[key]) heroKey = key; },
+    get heroKey() { return heroKey; },
+    hornbill,
     resume() { if (g.phase === 'paused' || g.phase === 'menu') g.phase = 'play'; },
     rig,
     pauseGame() { if (g.phase === 'play') g.phase = 'paused'; },

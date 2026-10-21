@@ -19,8 +19,9 @@ export async function loadModels() {
     }
   };
   try {
-    const [korto, crawler, sii, environment] = await Promise.all([get('korto'), get('crawler'), get('sii'), get('environment')]);
-    return { korto, crawler, sii, environment };
+    const names = ['korto', 'flomo', 'hornbill', 'crawler', 'sii', 'environment'];
+    const list = await Promise.all(names.map(get));
+    return Object.fromEntries(names.map((n, i) => [n, list[i]]));
   } catch (err) {
     console.warn('Models did not load; using the gray-box shapes.', err);
     return null;
@@ -106,14 +107,14 @@ export class Animator {
 /** Set an emissive glow on materials (the eyes keep their own). */
 export function setGlow(materials, r, g, b) {
   for (const m of materials) {
-    if (m.name === 'Eyes') continue;
+    if (m.name === 'Eyes' || m.name === 'Glow') continue;
     m.emissive.setRGB(r, g, b);
   }
 }
 
 export function setShade(materials, k) {
   for (const m of materials) {
-    if (m.name === 'Eyes') continue;
+    if (m.name === 'Eyes' || m.name === 'Glow') continue;
     m.color.setScalar(k);
   }
 }

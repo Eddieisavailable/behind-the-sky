@@ -70,7 +70,7 @@
       <!-- Start -->
       <div id="screen-start" class="screen">
         <div class="panel">
-          <p class="eyebrow">Gray-box prototype · v0.1</p>
+          <p class="eyebrow">Vertical slice in progress · v0.2</p>
           <h1>Behind the Sky</h1>
           <p class="lead">Rattan crawlers rise from the vines and grow back unless burned. The Hornbill lends you its sight. Every gift is a loan, paid at the crossroads.</p>
           <ul class="howto">
@@ -79,6 +79,10 @@
             <li><b>Sight</b> slows time and shows hidden crawlers, but adds debt. At 100 the dark closes in.</li>
             <li>Pay at the <b>crossroads</b> with rice or iron. Forge better iron at the <b>forge</b> to Sii's drum.</li>
           </ul>
+          <div class="hero-pick" role="radiogroup" aria-label="Choose your hero">
+            <button type="button" class="hero-card selected" data-hero="korto" role="radio" aria-checked="true"><b>Korto</b><span>Quick on her feet. The blacksmith's daughter.</span></button>
+            <button type="button" class="hero-card" data-hero="flomo" role="radio" aria-checked="false"><b>Flomo</b><span>Slower, hits harder, takes more. Her older brother, the forge apprentice.</span></button>
+          </div>
           <button id="btn-start" class="primary" disabled>Loading…</button>
           <p class="keys">Phone: left thumb moves, drag the right side to look around.<br />Computer: mouse looks · left click cut · hold right click to aim the bow · WASD or arrow keys move · Space roll · F sight · Q or wheel switch arrows · E burn/pay/forge · Esc pause</p>
         </div>

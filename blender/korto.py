@@ -113,31 +113,31 @@ def build_body():
     return b
 
 
-def build_cutlass():
+def build_cutlass(hand=(-0.215, -0.01, 0.85), width=0.05, length=1.0):
     """Held in the right hand, blade forward and down at rest."""
     b = Body("Cutlass")
-    hand = Vector((-0.215, -0.01, 0.85))
+    hand = Vector(hand)
     down_fwd = Vector((0, -0.55, -1)).normalized()
     grip_end = hand + down_fwd * 0.07
     b.limb("x", WOOD, hand - down_fwd * 0.06, grip_end, 0.016, 0.018)
     b.box("x", IRON, Matrix.Translation(grip_end) @ down_fwd.to_track_quat("Z", "Y").to_matrix().to_4x4(), (0.11, 0.025, 0.02))
     # a broad, slightly curved blade in two pieces, then a clipped tip
-    p1 = grip_end + down_fwd * 0.25
+    p1 = grip_end + down_fwd * 0.25 * length
     curve = (down_fwd + Vector((0, -0.25, 0.1))).normalized()
-    p2 = p1 + curve * 0.25
+    p2 = p1 + curve * 0.25 * length
     for a, c in ((grip_end, p1), (p1, p2)):
         mid = (a + c) / 2
         rot = (c - a).normalized().to_track_quat("Z", "X").to_matrix().to_4x4()
-        b.box("x", STEEL, Matrix.Translation(mid) @ rot, (0.008, 0.05, (c - a).length))
+        b.box("x", STEEL, Matrix.Translation(mid) @ rot, (0.008, width, (c - a).length))
     rot = curve.to_track_quat("Z", "X").to_matrix().to_4x4()
-    b.cone("x", STEEL_EDGE, Matrix.Translation(p2 + curve * 0.04) @ rot @ Matrix.Diagonal((0.16, 1, 1, 1)), 0.035, 0.002, 0.08, segments=4)
+    b.cone("x", STEEL_EDGE, Matrix.Translation(p2 + curve * 0.04) @ rot @ Matrix.Diagonal((0.16, 1, 1, 1)), 0.7 * width, 0.002, 0.08, segments=4)
     return b
 
 
-def build_bow():
+def build_bow(hand=(0.215, -0.005, 0.85)):
     """Lies along Y through the left hand (bulging down) so it stands upright when the arm is raised to shoot."""
     b = Body("Bow")
-    hand = Vector((0.215, -0.005, 0.85))
+    hand = Vector(hand)
     pts = []
     for i in range(9):
         t = -1 + i / 4

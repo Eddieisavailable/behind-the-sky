@@ -314,6 +314,21 @@ export function createUi({ stats, quality }) {
     hooks = h;
     const { onStart } = h;
     $('btn-start').addEventListener('click', onStart);
+    // hero choice: Korto or Flomo, remembered on this device
+    const cards = [...document.querySelectorAll('.hero-card')];
+    const pick = (key) => {
+      game.setHero(key);
+      for (const c of cards) {
+        const on = c.dataset.hero === game.heroKey;
+        c.classList.toggle('selected', on);
+        c.setAttribute('aria-checked', String(on));
+      }
+      try { localStorage.setItem('bts-hero', game.heroKey); } catch {}
+    };
+    let saved = 'korto';
+    try { saved = localStorage.getItem('bts-hero') || 'korto'; } catch {}
+    pick(saved);
+    for (const c of cards) c.addEventListener('click', () => pick(c.dataset.hero));
     $('btn-resume').addEventListener('click', () => { hide(el.pause); game.resume(); hooks.onResume?.(); });
     $('btn-pause').addEventListener('click', () => pause());
     $('btn-again').addEventListener('click', () => { hide(el.dead); onStart(); });

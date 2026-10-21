@@ -4,7 +4,7 @@ An action game rooted in Kpelle folklore and the Woi epic. This repo is **phase 
 
 > Is *fight, spend spirit power, pay it back at the crossroads* fun on a cheap phone?
 
-Third-person camera, no story, one arena. Phase 4 has started: Korto and the rattan crawler are now Blender models with animations; the world is still gray-box. Design docs: the story bible and the *Core Loop and Slice* doc.
+Third-person camera, no story yet, one clearing. Phase 4 is under way: both heroes (Korto and Flomo), the rattan crawler, Sii, the Hornbill Genie and the clearing's forest, village and story places are Blender models. Design docs: the story bible and the *Core Loop and Slice* doc.
 
 ## What's in it
 
@@ -14,7 +14,8 @@ Third-person camera, no story, one arena. Phase 4 has started: Korto and the rat
 | Third-person camera: drag to look, drifts back behind the hero, stays out of the trees | `src/game/camera.js` |
 | Hero: camera-relative joystick, cutlass three-hit combo, bow aimed where you look, roll | `src/game/hero.js`, `src/game/game.js` |
 | Rattan crawlers that grow back after 4 s unless burned (countdown over each pile, **Burn it** button up close); one hides as a vine post from wave 2; 5 waves win the round | `src/game/crawlers.js`, `src/rules/crawlerLife.js` |
-| Hornbill sight: slows time, shows hidden crawlers, adds 15 debt; at 100 the dark closes in | `src/rules/debt.js` |
+| Hornbill sight: slows time, shows hidden crawlers, adds 15 debt; at 100 the dark closes in. The Hornbill leaves its post at the crossroads and circles overhead while its sight is lent | `src/rules/debt.js`, `src/game/hornbill.js` |
+| Choose Korto (quick) or Flomo (slower, 130 health, hits 30% harder) on the start screen | `src/config.js` (`HEROES`) |
 | Paying at the crossroads with rice or iron; bond levels | `src/rules/debt.js`, `src/ui.js` |
 | Rhythm forge: 30 seconds to Sii's slit-drum, better iron | `src/rules/rhythm.js`, `src/ui.js` |
 | Graphics levels: Auto, High (computers: shadows, anti-aliasing, dense grass), Medium (phones), Low | `src/quality.js`, `src/config.js` |
@@ -30,7 +31,11 @@ Every model is built by a Python script in `blender/`, so it can be rebuilt, twe
 | Model | Script | Animations |
 | --- | --- | --- |
 | Korto | `blender/korto.py` | Idle, Run, Slash1-3, Roll, Draw, Burn, Hurt, Death |
+| Flomo (Korto's older brother) | `blender/flomo.py` | Korto's ten, on a broader build |
 | Rattan crawler | `blender/crawler.py` | Idle, Walk, Windup, Strike, Down, Rise |
+| Sii the spider | `blender/sii.py` | Idle, Drum |
+| Hornbill Genie | `blender/hornbill.py` | Perch, Call, Fly, Glide |
+| Clearing and village (14 pieces) | `blender/environment.py` | static |
 
 Style: stylized low-poly, flat-shaded vertex colours, one skinned mesh per character (one draw call on a phone), every part bound to one bone like a carved puppet. Preview renders are in `blender/previews/`.
 

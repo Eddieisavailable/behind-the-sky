@@ -18,6 +18,25 @@ export const HERO = {
   hurtInvulnerable: 0.5,   // grace time after being hit
 };
 
+/** The two playable heroes: same story, different starting strengths. */
+export const HEROES = {
+  korto: { key: 'korto', name: 'Korto', health: HERO.health, speed: HERO.speed, damage: 1, scale: 1.12,
+    blurb: 'Quick on her feet. The blacksmith\'s daughter.' },
+  flomo: { key: 'flomo', name: 'Flomo', health: 130, speed: 5.8, damage: 1.3, scale: 1.18,
+    blurb: 'Slower, hits harder, takes more. Her older brother, the forge apprentice.' },
+};
+
+/** The Hornbill Genie's body in the clearing: where it perches and how it flies during Sight. */
+export const HORNBILL_BIRD = {
+  scale: 1.35,
+  perch: { dx: 1.9, dz: -0.9, height: 1.55 }, // a carved post beside the crossroads shrine
+  flyHeight: 4,
+  circleRadius: 4.5,
+  circleAhead: 6,       // circle centre this far ahead of the hero, in the camera's direction
+  circleSpeed: 0.9,     // radians per second round the hero
+  speed: 11,            // metres per second when travelling
+};
+
 export const CUTLASS = {
   damage: [10, 10, 18],    // three-hit combo; third hit staggers
   hitTime: [0.1, 0.1, 0.14],   // when in the swing the blow lands

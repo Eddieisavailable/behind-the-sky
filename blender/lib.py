@@ -17,7 +17,7 @@ from pathlib import Path
 
 import bpy  # must come first: it makes bmesh and mathutils importable
 import bmesh
-from mathutils import Euler, Matrix, Vector
+from mathutils import Euler, Matrix, Quaternion, Vector
 
 ROOT = Path(__file__).resolve().parent.parent
 MODELS_OUT = ROOT / "public" / "models"

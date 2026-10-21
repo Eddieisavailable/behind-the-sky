@@ -115,4 +115,4 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 }
 
 // handle for automated tests and for poking at tuning in the console
-window.__bts = { game, stats, input, quality, models };
+window.__bts = { game, stats, input, quality, models, renderer };
