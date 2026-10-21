@@ -1,6 +1,13 @@
 # Behind the Sky — gray-box prototype
 
-An action game rooted in Kpelle folklore and the Woi epic. This repo is **phase 3**: a gray-box prototype that answers one question:
+An action game rooted in Kpelle folklore and the Woi epic.
+
+> **Direction (October 2026):** the game ships as an **Unreal Engine** game for **PC and Android first, iOS later**; the PWA is dropped.
+> Blender is used for the realism pass on characters and worlds, the cinematic scenes and the trailers; Unreal for the gameplay build.
+> This repo stays as the playable prototype and reference: its rules (`src/rules/`), tuning (`src/config.js`), layouts (`src/game/areas.js`)
+> and Blender scripts are what the Unreal build is ported from.
+
+This repo is **phase 3**: a gray-box prototype that answers one question:
 
 > Is *fight, spend spirit power, pay it back at the crossroads* fun on a cheap phone?
 
