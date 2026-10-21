@@ -6,8 +6,9 @@ import { HERO, BOW } from '../config.js';
 import { COLORS } from './world.js';
 import { blobShadow } from './fx.js';
 import { createCombo } from '../rules/combo.js';
+import { instantiate, Animator, setGlow } from './models.js';
 
-export function createHero(scene) {
+export function createHero(scene, models = null, quality = {}) {
   const group = new THREE.Group();
   const bodyMat = new THREE.MeshLambertMaterial({ color: COLORS.hero, emissive: 0x000000 });
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.9, 4, 10), bodyMat);
@@ -43,6 +44,20 @@ export function createHero(scene) {
   group.add(body, head, wrap, nose, pivot, bow, blobShadow(0.6));
   scene.add(group);
 
+  // the Blender model replaces the gray-box shapes when it loaded
+  let model = null;
+  let anim = null;
+  let bowNode = null;
+  if (models?.korto) {
+    model = instantiate(models.korto, { lambert: quality.key !== 'high' });
+    group.add(model.object);
+    for (const part of [body, head, wrap, nose, pivot, bow]) part.visible = false;
+    anim = new Animator(model.root, model.clips);
+    bowNode = model.root.getObjectByName('Bow');
+    if (bowNode) bowNode.visible = false;
+    anim.play('Idle');
+  }
+
   // aim guide: a thin strip on the ground
   const aim = new THREE.Mesh(
     new THREE.PlaneGeometry(0.12, 1),
@@ -54,6 +69,11 @@ export function createHero(scene) {
 
   return {
     group, body, bodyMat, pivot, blade, bow, aim,
+    model, anim, bowNode,
+    hurtAnim: 0,
+    burnAnim: 0,
+    dead: false,
+    animStep: -1,
     pos: new THREE.Vector3(0, 0, 4),
     facing: new THREE.Vector2(0, -1),   // unit vector on the ground (x, z)
     health: HERO.health,
@@ -78,10 +98,40 @@ export function faceToward(h, dx, dz) {
   if (len > 1e-4) h.facing.set(dx / len, dz / len);
 }
 
+/** Pick the animation for what the hero is doing right now. */
+function animateModel(h, dt, moving, speedFactor) {
+  const a = h.anim;
+  const c = h.combo;
+  h.hurtAnim = Math.max(0, h.hurtAnim - dt);
+  h.burnAnim = Math.max(0, h.burnAnim - dt);
+  if (h.dead) a.play('Death', { once: true, fade: 0.1 });
+  else if (h.dodgeLeft > 0) a.play('Roll', { once: true, fade: 0.05, seconds: 0.3 });
+  else if (c.step >= 0) {
+    const name = `Slash${c.step + 1}`;
+    a.play(name, { once: true, fade: 0.06, seconds: c.cfg.duration[c.step], restart: h.animStep !== c.step });
+    h.animStep = c.step;
+  } else if (h.burnAnim > 0) a.play('Burn', { once: true, fade: 0.06, seconds: 0.4 });
+  else if (h.drawing) a.play('Draw', { once: true, fade: 0.1, seconds: 0.3 });
+  else if (h.hurtAnim > 0) a.play('Hurt', { once: true, fade: 0.05, seconds: 0.3 });
+  else if (moving) a.play('Run', { timeScale: Math.max(0.6, speedFactor) * 1.1, fade: 0.15 });
+  else a.play('Idle', { fade: 0.2 });
+  if (c.step < 0) h.animStep = -1;
+  if (h.bowNode) h.bowNode.visible = h.drawing;
+  a.update(dt);
+}
+
 /** Update pose: position, facing, bob, cutlass swing, bow and aim guide. */
-export function poseHero(h, dt, { moving, aimDir, aimLength }) {
+export function poseHero(h, dt, { moving, aimDir, aimLength, speedFactor = 1 }) {
   h.group.position.copy(h.pos);
   h.group.rotation.y = Math.atan2(-h.facing.x, -h.facing.y);
+  if (h.anim) {
+    animateModel(h, dt, moving, speedFactor);
+    poseAim(h, aimDir, aimLength);
+    if (h.hurtFlash > 0) h.hurtFlash = Math.max(0, h.hurtFlash - dt);
+    setGlow(h.model.materials, h.hurtFlash * 2.5, 0, 0);
+    h.group.visible = !(h.invulnerable > 0 && h.dodgeLeft <= 0 && !h.dead && Math.floor(h.invulnerable * 20) % 2 === 0);
+    return;
+  }
 
   if (moving && h.dodgeLeft <= 0) h.walkPhase += dt * 11;
   const bob = moving ? Math.abs(Math.sin(h.walkPhase)) * 0.08 : 0;
@@ -104,14 +154,7 @@ export function poseHero(h, dt, { moving, aimDir, aimLength }) {
   }
 
   h.bow.visible = h.drawing;
-  h.aim.visible = h.drawing;
-  if (h.drawing && aimDir) {
-    const len = aimLength;
-    h.aim.scale.set(1, len, 1);
-    h.aim.position.set(h.pos.x + aimDir.x * (len / 2 + 0.5), 0.05, h.pos.z + aimDir.y * (len / 2 + 0.5));
-    h.aim.rotation.set(-Math.PI / 2, 0, Math.atan2(-aimDir.x, -aimDir.y));
-    h.aim.material.color.setHex(h.arrowKind === 'fire' ? 0xe8742a : 0xf2b33d);
-  }
+  poseAim(h, aimDir, aimLength);
 
   if (h.hurtFlash > 0) {
     h.hurtFlash = Math.max(0, h.hurtFlash - dt);
@@ -121,4 +164,14 @@ export function poseHero(h, dt, { moving, aimDir, aimLength }) {
   }
   // blink while invulnerable after a hit
   h.group.visible = !(h.invulnerable > 0 && h.dodgeLeft <= 0 && Math.floor(h.invulnerable * 20) % 2 === 0);
+}
+
+function poseAim(h, aimDir, aimLength) {
+  h.aim.visible = h.drawing && !!aimDir;
+  if (!h.aim.visible) return;
+  const len = aimLength;
+  h.aim.scale.set(1, len, 1);
+  h.aim.position.set(h.pos.x + aimDir.x * (len / 2 + 0.5), 0.05, h.pos.z + aimDir.y * (len / 2 + 0.5));
+  h.aim.rotation.set(-Math.PI / 2, 0, Math.atan2(-aimDir.x, -aimDir.y));
+  h.aim.material.color.setHex(h.arrowKind === 'fire' ? 0xe8742a : 0xf2b33d);
 }

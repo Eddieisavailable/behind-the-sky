@@ -4,7 +4,7 @@ An action game rooted in Kpelle folklore and the Woi epic. This repo is **phase 
 
 > Is *fight, spend spirit power, pay it back at the crossroads* fun on a cheap phone?
 
-Third-person camera, plain shapes, no story, one arena. Characters, the world and every design will be made in Blender in phase 4 and loaded as glTF. Design docs: the story bible and the *Core Loop and Slice* doc.
+Third-person camera, no story, one arena. Phase 4 has started: Korto and the rattan crawler are now Blender models with animations; the world is still gray-box. Design docs: the story bible and the *Core Loop and Slice* doc.
 
 ## What's in it
 
@@ -22,6 +22,24 @@ Third-person camera, plain shapes, no story, one arena. Characters, the world an
 | Playtest stats kept on the phone, copyable from the pause screen | `src/stats.js` |
 
 Every tuning number is in `src/config.js`.
+
+## Models (Blender)
+
+Every model is built by a Python script in `blender/`, so it can be rebuilt, tweaked and reviewed like code:
+
+| Model | Script | Animations |
+| --- | --- | --- |
+| Korto | `blender/korto.py` | Idle, Run, Slash1-3, Roll, Draw, Burn, Hurt, Death |
+| Rattan crawler | `blender/crawler.py` | Idle, Walk, Windup, Strike, Down, Rise |
+
+Style: stylized low-poly, flat-shaded vertex colours, one skinned mesh per character (one draw call on a phone), every part bound to one bone like a carved puppet. Preview renders are in `blender/previews/`.
+
+```bash
+pip install bpy==5.1.2 pillow             # Blender as a Python package (or use the Blender app's Scripting tab)
+./tools/build-models.sh --preview          # rebuild all models, render previews, shrink the .glb files
+```
+
+To edit a model by hand, open the exported `public/models/*.glb` in Blender (File > Import > glTF), or run the script inside Blender and save the .blend.
 
 ## Controls
 

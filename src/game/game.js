@@ -18,7 +18,7 @@ import { sfx } from '../audio.js';
 
 const BURN_RANGE = 2.6;
 
-export function createGame({ input, ui, stats, quality }) {
+export function createGame({ input, ui, stats, quality, models = null }) {
   const world = createWorld(quality);
   const { scene } = world;
   const camera = new THREE.PerspectiveCamera(CAMERA.fov, 1, 0.2, 150);
@@ -49,7 +49,7 @@ export function createGame({ input, ui, stats, quality }) {
     for (const c of g.crawlers) removeCrawler(scene, c);
     arrows.clear();
     pickups.clear();
-    g.hero = createHero(scene);
+    g.hero = createHero(scene, models, quality);
     useRealShadows(g.hero.group);
     g.crawlers = [];
     g.pack = { rice: 0, iron: 0 };
@@ -130,7 +130,7 @@ export function createGame({ input, ui, stats, quality }) {
     const use = far.length ? far : spots;
     for (let i = 0; i < size.regular; i++) {
       const s = use[i % use.length];
-      const c = createCrawler(scene, s.x + (Math.random() - 0.5) * 2, s.z + (Math.random() - 0.5) * 2, { speed });
+      const c = createCrawler(scene, s.x + (Math.random() - 0.5) * 2, s.z + (Math.random() - 0.5) * 2, { speed, models, quality });
       c.life.state = 'regrowing';   // rises out of the vines
       c.life.timer = 0;
       useRealShadows(c.group);
@@ -146,7 +146,7 @@ export function createGame({ input, ui, stats, quality }) {
         const clear = [ARENA.crossroads, ARENA.forge, ARENA.brazier].every((p) => Math.hypot(p.x - x, p.z - z) > 5)
           && Math.hypot(g.hero.pos.x - x, g.hero.pos.z - z) > 7;
         if (!clear) continue;
-        const c = createCrawler(scene, x, z, { disguised: true, speed });
+        const c = createCrawler(scene, x, z, { disguised: true, speed, models, quality });
         useRealShadows(c.group);
         g.crawlers.push(c);
         break;
@@ -177,6 +177,7 @@ export function createGame({ input, ui, stats, quality }) {
       return;
     }
     h.fireArrows -= 1;
+    h.burnAnim = 0.4;
     faceToward(h, c.pos.x - h.pos.x, c.pos.z - h.pos.z);
     const before = c.life.state;
     const after = hitFire(c.life, 0);
@@ -240,6 +241,7 @@ export function createGame({ input, ui, stats, quality }) {
     h.health = Math.max(0, h.health - damage);
     h.invulnerable = HERO.hurtInvulnerable;
     h.hurtFlash = 0.25;
+    h.hurtAnim = 0.3;
     fx.burst(h.pos.x, 1.2, h.pos.z, 'blood', 12, 4);
     sfx.hurt();
     ui.hurt();
@@ -249,6 +251,7 @@ export function createGame({ input, ui, stats, quality }) {
 
   function die() {
     g.phase = 'dead';
+    g.hero.dead = true;
     input.releasePointer?.();
     h_stopDraw();
     stats.add('deaths', 1);
@@ -332,7 +335,11 @@ export function createGame({ input, ui, stats, quality }) {
 
     if (g.phase !== 'play') {
       input.consume();
-      if (g.hero) updateRig(rig, dt, g.hero);
+      if (g.hero) {
+        updateRig(rig, dt, g.hero);
+        // let the death fall (and idle breathing behind menus) keep playing
+        if (g.hero.anim && g.phase !== 'paused') poseHero(g.hero, dt, { moving: false });
+      }
       return;
     }
     g.roundTime += dt;
@@ -519,7 +526,7 @@ export function createGame({ input, ui, stats, quality }) {
       if (g.breatherLeft <= 0) startWave();
     }
 
-    poseHero(h, dt, { moving: moveLen > 0.05 || h.dodgeLeft > 0, aimDir, aimLength });
+    poseHero(h, dt, { moving: moveLen > 0.05 || h.dodgeLeft > 0, aimDir, aimLength, speedFactor: moveLen * (h.drawing ? HERO.aimSpeedFactor : 1) });
     updateRig(rig, dt, h, { moving: moveLen > 0.3, aiming: h.drawing });
     world.followSun(h.pos.x, h.pos.z);
     input.consume();

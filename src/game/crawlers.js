@@ -6,6 +6,7 @@ import { CRAWLER } from '../config.js';
 import { COLORS } from './world.js';
 import { blobShadow } from './fx.js';
 import { createLife, tickLife, regrowProgress, isActive } from '../rules/crawlerLife.js';
+import { instantiate, Animator, setGlow, setShade } from './models.js';
 
 const segGeo = new THREE.CapsuleGeometry(0.28, 0.35, 3, 8);
 const headGeo = new THREE.SphereGeometry(0.3, 10, 8);
@@ -16,7 +17,7 @@ const thornGeo = new THREE.ConeGeometry(0.07, 0.3, 4);
 
 let nextId = 1;
 
-export function createCrawler(scene, x, z, { disguised = false, speed = CRAWLER.speed } = {}) {
+export function createCrawler(scene, x, z, { disguised = false, speed = CRAWLER.speed, models = null, quality = {} } = {}) {
   const group = new THREE.Group();
   group.position.set(x, 0, z);
   const mat = new THREE.MeshLambertMaterial({ color: COLORS.rattan, emissive: 0x000000 });
@@ -55,9 +56,24 @@ export function createCrawler(scene, x, z, { disguised = false, speed = CRAWLER.
   group.add(body, post, shadow);
   scene.add(group);
 
+  // the Blender model replaces the gray-box body when it loaded
+  let model = null;
+  let anim = null;
+  if (models?.crawler) {
+    model = instantiate(models.crawler, { lambert: quality.key !== 'high' });
+    group.add(model.object);
+    body.visible = false;
+    model.object.visible = !disguised;
+    anim = new Animator(model.root, model.clips);
+    anim.play('Idle', { fade: 0 });
+  }
+
   return {
     id: nextId++,
     group, body, post, mat, shadow,
+    model, anim,
+    moving: false,
+    strikeAnim: 0,
     pos: group.position,
     vel: new THREE.Vector2(),
     life: createLife(CRAWLER, { disguised }),
@@ -76,6 +92,7 @@ export function removeCrawler(scene, c) {
   scene.remove(c.group);
   c.mat.dispose();
   c.post.material.dispose();
+  if (c.model) for (const m of c.model.materials) m.dispose();
 }
 
 /**
@@ -96,6 +113,7 @@ export function updateCrawler(c, enemyDt, hero, others, { reveal }) {
     }
   }
 
+  c.moving = false;
   if (isActive(c.life)) {
     c.attackCooldown = Math.max(0, c.attackCooldown - enemyDt);
     if (c.stun > 0) {
@@ -109,6 +127,7 @@ export function updateCrawler(c, enemyDt, hero, others, { reveal }) {
         if (c.windup <= 0) {
           c.windup = 0;
           c.attackCooldown = CRAWLER.attackCooldown;
+          c.strikeAnim = 0.4;
           if (dist < CRAWLER.attackRange + 0.35) event = { type: 'strike', damage: CRAWLER.damage };
         }
       } else if (dist < CRAWLER.attackRange && c.attackCooldown <= 0) {
@@ -125,6 +144,7 @@ export function updateCrawler(c, enemyDt, hero, others, { reveal }) {
           if (od < 1.3 && od > 1e-3) { mx += (ox / od) * 0.8; mz += (oz / od) * 0.8; }
         }
         const ml = Math.hypot(mx, mz) || 1;
+        c.moving = true;
         c.pos.x += (mx / ml) * c.speed * enemyDt;
         c.pos.z += (mz / ml) * c.speed * enemyDt;
       }
@@ -142,7 +162,46 @@ export function updateCrawler(c, enemyDt, hero, others, { reveal }) {
   return event;
 }
 
+function animateModel(c, dt, reveal) {
+  const st = c.life.state;
+  const a = c.anim;
+  const disguised = st === 'disguised';
+  c.model.object.visible = !disguised || reveal;
+  c.post.visible = disguised && !reveal;
+  c.strikeAnim = Math.max(0, c.strikeAnim - dt);
+
+  if (st === 'burned') {
+    // sink into ash; the game removes it a moment later
+    c.model.object.scale.y = Math.max(0.05, c.model.object.scale.y - dt * 3);
+    setShade(c.model.materials, 0.25);
+    setGlow(c.model.materials, 0.6, 0.2, 0.02);
+    a.update(dt);
+    return;
+  }
+  if (st === 'downed') a.play('Down', { once: true, fade: 0.08, seconds: 0.45 });
+  else if (st === 'regrowing') a.play('Rise', { once: true, fade: 0.05, seconds: c.life.cfg.regrowDuration });
+  else if (disguised) a.play('Idle');
+  else if (c.windup > 0) a.play('Windup', { once: true, fade: 0.08, seconds: CRAWLER.windup });
+  else if (c.strikeAnim > 0) a.play('Strike', { once: true, fade: 0.04, seconds: 0.4 });
+  else if (c.moving) a.play('Walk', { timeScale: c.speed / CRAWLER.speed, fade: 0.15 });
+  else a.play('Idle', { fade: 0.2 });
+  a.update(dt);
+
+  const burning = c.life.burnLeft > 0 && st === 'alive';
+  setShade(c.model.materials, st === 'downed' || st === 'regrowing' ? 0.6 : 1);
+  if (burning) setGlow(c.model.materials, 0.8 + Math.sin(c.wobble * 3) * 0.2, 0.3, 0.05);
+  else if (reveal) setGlow(c.model.materials, 0.5, 0.38, 0.05);
+  else if (c.windup > 0) setGlow(c.model.materials, 0.35, 0.05, 0.02);
+  else setGlow(c.model.materials, 0, 0, 0);
+  c.post.material.emissive.setRGB(reveal ? 0.55 : 0, reveal ? 0.42 : 0, reveal ? 0.05 : 0);
+}
+
 function poseCrawler(c, dt, reveal) {
+  if (c.anim) {
+    c.wobble += dt * 6;
+    animateModel(c, dt, reveal);
+    return;
+  }
   const st = c.life.state;
   c.wobble += dt * (c.windup > 0 ? 30 : 6);
   const disguised = st === 'disguised';

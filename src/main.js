@@ -7,6 +7,7 @@ import { createStats } from './stats.js';
 import { unlockAudio } from './audio.js';
 import { PERF } from './config.js';
 import { resolveQuality } from './quality.js';
+import { loadModels } from './game/models.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -21,7 +22,8 @@ const input = createInput({
 });
 const canvas = $('scene');
 const renderer = createRenderer(canvas, quality);
-const game = createGame({ input, ui, stats, quality });
+const models = await loadModels();
+const game = createGame({ input, ui, stats, quality, models });
 
 // ---- sizing and adaptive resolution ----
 const basePixelRatio = Math.min(window.devicePixelRatio, quality.maxPixelRatio);
@@ -51,6 +53,9 @@ function start() {
   game.start();
   input.lockPointer(); // PC: capture the mouse for the camera (needs this click)
 }
+const startBtn = $('btn-start');
+startBtn.disabled = false;
+startBtn.textContent = 'Tap to play';
 ui.bind(game, {
   onStart: start,
   onPause: () => input.releasePointer(),
@@ -110,4 +115,4 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 }
 
 // handle for automated tests and for poking at tuning in the console
-window.__bts = { game, stats, input, quality };
+window.__bts = { game, stats, input, quality, models };

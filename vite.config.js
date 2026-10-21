@@ -5,7 +5,7 @@ export default defineConfig({
   // Relative paths so the build runs from any folder or host (Vercel, a test link, a phone).
   base: './',
   build: {
-    target: 'es2020',
+    target: 'es2022', // top-level await while the models load
     chunkSizeWarningLimit: 900,
   },
   plugins: [
@@ -30,7 +30,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,png,webmanifest,glb}'],
         cleanupOutdatedCaches: true,
       },
     }),
