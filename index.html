@@ -40,6 +40,7 @@
         </div>
         <div id="fps" class="fps">-- fps</div>
         <div id="toast" class="toast"></div>
+        <div id="lock-hint" class="lock-hint hidden">Click to control the camera with the mouse</div>
       </div>
 
       <!-- Touch controls -->
@@ -57,11 +58,12 @@
             </svg>
             <span class="btn-label">Sight</span>
             <span id="debt-text" class="btn-sub">0</span>
+            <span class="key">F</span>
           </button>
-          <button id="btn-arrow" class="btn btn-arrow" aria-label="Switch arrow"><span id="arrow-kind">Iron</span><span id="arrow-count" class="btn-sub">∞</span></button>
-          <button id="btn-bow" class="btn btn-bow" aria-label="Bow (hold)">Bow</button>
-          <button id="btn-dodge" class="btn btn-dodge" aria-label="Dodge">Roll</button>
-          <button id="btn-attack" class="btn btn-attack" aria-label="Cutlass">Cut</button>
+          <button id="btn-arrow" class="btn btn-arrow" aria-label="Switch arrow"><span id="arrow-kind">Iron</span><span id="arrow-count" class="btn-sub">∞</span><span class="key">Q</span></button>
+          <button id="btn-bow" class="btn btn-bow" aria-label="Bow (hold)">Bow<span class="key">Right click</span></button>
+          <button id="btn-dodge" class="btn btn-dodge" aria-label="Dodge">Roll<span class="key">Space</span></button>
+          <button id="btn-attack" class="btn btn-attack" aria-label="Cutlass">Cut<span class="key">Left click</span></button>
         </div>
       </div>
 
@@ -78,7 +80,7 @@
             <li>Pay at the <b>crossroads</b> with rice or iron. Forge better iron at the <b>forge</b> to Sii's drum.</li>
           </ul>
           <button id="btn-start" class="primary">Tap to play</button>
-          <p class="keys">Phone: left thumb moves, drag the right side to look around. Keyboard: WASD move · mouse drag or arrow keys look · J cut · K hold bow · Space roll · F sight · Q arrow · E burn/pay/forge · P pause</p>
+          <p class="keys">Phone: left thumb moves, drag the right side to look around.<br />Computer: mouse looks · left click cut · hold right click to aim the bow · WASD or arrow keys move · Space roll · F sight · Q or wheel switch arrows · E burn/pay/forge · Esc pause</p>
         </div>
       </div>
 

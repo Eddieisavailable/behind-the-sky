@@ -115,7 +115,8 @@ export const CAMERA = {
   minPitch: 0.08,
   maxPitch: 1.05,
   shoulder: 0.6,           // look a little right of the hero
-  sensitivity: 0.006,      // radians per pixel dragged
+  sensitivity: 0.006,      // radians per pixel dragged (touch)
+  mouseSensitivity: 0.0024, // radians per mouse count when the pointer is captured
   followDelay: 1.2,        // seconds after a drag before the camera drifts back behind the hero
   followRate: 2.2,
   edgeAllowance: 2.5,      // how far past the clearing's edge the camera may sit

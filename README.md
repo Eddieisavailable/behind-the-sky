@@ -27,7 +27,7 @@ Every tuning number is in `src/config.js`.
 
 **Phone (landscape):** left thumb anywhere = joystick · drag the right side to look around · **Cut** · **Bow** (hold to aim where the camera looks, release) · **Roll** · **Sight** (the ring is your debt) · **Iron/Fire** switches arrows · **Burn it / Pay / Use the forge** appears when you are close.
 
-**Keyboard and mouse:** WASD move · drag the mouse or arrow keys to look · J cut · K hold bow · Space roll · F sight · Q switch arrow · E burn/pay/forge · P pause.
+**Computer (standard PC controls):** click the game once to capture the mouse, then move the mouse to look (Esc frees it and pauses) · **left click** cut · **hold right click** to aim the bow, release to shoot · **WASD or arrow keys** move (Up forward, Down back, Left, Right) · **Space or Shift** roll · **F** Hornbill sight · **Q or mouse wheel** switch arrows · **E** burn / pay / forge · **P** pause. If a browser refuses to capture the mouse, hold right click and drag to look.
 
 ## Run it
 

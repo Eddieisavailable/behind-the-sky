@@ -17,6 +17,7 @@ const input = createInput({
   stickZone: $('stick-zone'), stickBase: $('stick-base'), stickKnob: $('stick-knob'), lookZone: $('look-zone'),
   btnAttack: $('btn-attack'), btnDodge: $('btn-dodge'), btnBow: $('btn-bow'), btnPower: $('btn-power'),
   btnArrow: $('btn-arrow'), btnInteract: $('btn-interact'),
+  canvas: $('scene'), lockTarget: $('app'),
 });
 const canvas = $('scene');
 const renderer = createRenderer(canvas, quality);
@@ -48,14 +49,21 @@ function start() {
   }
   ui.enterPlay();
   game.start();
+  input.lockPointer(); // PC: capture the mouse for the camera (needs this click)
 }
-ui.bind(game, { onStart: start });
+ui.bind(game, {
+  onStart: start,
+  onPause: () => input.releasePointer(),
+  onResume: () => input.lockPointer(),
+});
 
 // pause when the phone locks or the tab is hidden
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && game.g.phase === 'play') ui.pause();
   if (document.hidden) stats.save();
 });
+
+const lockHint = $('lock-hint');
 
 // ---- loop ----
 let last = performance.now();
@@ -70,6 +78,7 @@ function frame(now) {
   game.update(dt);
   renderer.render(game.scene, game.camera);
   ui.labels(game.labelAnchors(), game.camera, window.innerWidth, window.innerHeight);
+  lockHint.classList.toggle('hidden', !(game.g.phase === 'play' && input.canLock() && !input.pointerLocked));
 
   // frame-rate meter and adaptive resolution (measured over 2-second windows)
   windowTime += rawDt;

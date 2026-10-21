@@ -162,6 +162,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
   right: 116px; bottom: 196px; width: auto; height: 44px; padding: 0 18px;
   border-radius: 999px; background: rgba(232, 116, 42, 0.85); border-color: var(--parchment); color: #1a0f06;
 }
+.key { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .key {
+    display: block; margin-top: 2px; padding: 0 5px; border-radius: 4px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.02em; line-height: 15px;
+    background: rgba(239, 227, 200, 0.16); color: var(--parchment-dim);
+  }
+  .btn-interact .key { display: inline-block; margin: 0 0 0 8px; color: #1a0f06; background: rgba(26, 15, 6, 0.18); }
+}
+.lock-hint {
+  position: absolute; left: 50%; bottom: calc(26px + var(--safe-b)); transform: translateX(-50%);
+  padding: 6px 14px; border-radius: 999px; font-size: 13px;
+  background: var(--panel); border: 1px solid var(--line);
+}
 .btn-sub { font-size: 11px; font-weight: 600; opacity: 0.85; font-variant-numeric: tabular-nums; }
 .btn-label { font-size: 13px; }
 .btn-power.disabled { opacity: 0.5; }

@@ -67,7 +67,7 @@ export function createUi({ stats, quality }) {
     const interact = s.nearby === 'burn' ? (s.fireLeft > 0 ? `Burn it (${s.fireLeft} fire)` : 'No fire: go to the brazier') : s.nearby === 'crossroads' ? (s.owes ? `Pay the Hornbill (${s.debt})` : 'Crossroads') : s.nearby === 'forge' ? 'Use the forge' : null;
     set('interact', interact, (v) => {
       el.btnInteract.classList.toggle('hidden', !v);
-      if (v) el.btnInteract.textContent = v;
+      if (v) el.btnInteract.innerHTML = `${v}<span class="key">E</span>`;
     });
   }
 
@@ -100,7 +100,9 @@ export function createUi({ stats, quality }) {
   const show = (screen) => screen.classList.remove('hidden');
   const hide = (screen) => screen.classList.add('hidden');
 
+  let hooks = {};
   function pause() {
+    hooks.onPause?.();
     game.pauseGame();
     fillStats();
     show(el.pause);
@@ -165,6 +167,7 @@ export function createUi({ stats, quality }) {
   function closeMenu(screen) {
     hide(screen);
     game.resume();
+    hooks.onResume?.();
   }
 
   // ---------- forge ----------
@@ -306,10 +309,12 @@ export function createUi({ stats, quality }) {
   }
 
   // ---------- wiring ----------
-  function bind(g, { onStart }) {
+  function bind(g, h) {
     game = g;
+    hooks = h;
+    const { onStart } = h;
     $('btn-start').addEventListener('click', onStart);
-    $('btn-resume').addEventListener('click', () => { hide(el.pause); game.resume(); });
+    $('btn-resume').addEventListener('click', () => { hide(el.pause); game.resume(); hooks.onResume?.(); });
     $('btn-pause').addEventListener('click', () => pause());
     $('btn-again').addEventListener('click', () => { hide(el.dead); onStart(); });
     $('btn-win-again').addEventListener('click', () => { hide(el.win); onStart(); });

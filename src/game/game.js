@@ -249,6 +249,7 @@ export function createGame({ input, ui, stats, quality }) {
 
   function die() {
     g.phase = 'dead';
+    input.releasePointer?.();
     h_stopDraw();
     stats.add('deaths', 1);
     ui.dead({ wave: g.wave, seconds: g.roundTime, burned: g.roundBurned });
@@ -256,6 +257,7 @@ export function createGame({ input, ui, stats, quality }) {
 
   function win() {
     g.phase = 'won';
+    input.releasePointer?.();
     h_stopDraw();
     stats.add('roundsWon', 1);
     ui.win({ seconds: g.roundTime, burned: g.roundBurned, debt: g.genie.debt, forge: g.forgeLevel });
@@ -338,7 +340,7 @@ export function createGame({ input, ui, stats, quality }) {
     const h = g.hero;
     const inp = input;
 
-    if (inp.pause) { input.consume(); ui.pause(); return; }
+    if (inp.pause || inp.lockLost) { input.consume(); ui.pause(); return; }
 
     // the Hornbill
     const wasActive = g.genie.activeFor > 0;
@@ -350,7 +352,7 @@ export function createGame({ input, ui, stats, quality }) {
     ui.setDarkness(debt.isTurned(g.genie) ? 1 : 0);
 
     // look around (drag, mouse, or arrow keys)
-    look(rig, inp.look.dx + inp.lookKeys.x * dt * 420, inp.look.dy + inp.lookKeys.y * dt * 240);
+    look(rig, inp.look.dx, inp.look.dy);
 
     // timers
     h.invulnerable = Math.max(0, h.invulnerable - dt);
@@ -525,6 +527,7 @@ export function createGame({ input, ui, stats, quality }) {
   }
 
   function openPlace(place) {
+    input.releasePointer?.(); // free the mouse to click the menu
     if (place === 'crossroads') {
       g.phase = 'menu';
       h_stopDraw();
@@ -573,6 +576,7 @@ export function createGame({ input, ui, stats, quality }) {
     camera.updateProjectionMatrix();
   }
 
+  input.inPlay = () => g.phase === 'play';
   reset();
 
   return {
