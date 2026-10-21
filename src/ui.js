@@ -314,7 +314,15 @@ export function createUi({ stats }) {
         await navigator.clipboard.writeText(text);
         toast('Stats copied. Paste them into WhatsApp or an email.', 2600);
       } catch {
-        window.prompt('Copy these stats:', text);
+        // clipboard refused (some in-app browsers): show the text so it can be selected by hand
+        const box = document.createElement('textarea');
+        box.readOnly = true;
+        box.value = text;
+        box.style.cssText = 'width:100%;height:9em;grid-column:1/-1;background:#0c120e;color:inherit;border:1px solid var(--line);border-radius:8px;padding:8px;font:12px ui-monospace,monospace';
+        $('stats').appendChild(box);
+        box.focus();
+        box.select();
+        toast('Select the text and copy it.', 2600);
       }
     });
   }
