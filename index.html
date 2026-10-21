@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#121a14" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="icon" type="image/png" href="./icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <title>Behind the Sky</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+      <div id="vignette" class="vignette"></div>
+      <div id="darkness" class="darkness"></div>
+      <div id="hurt" class="hurt"></div>
+      <div id="labels"></div>
+
+      <!-- HUD -->
+      <div id="hud" class="hud hidden">
+        <div class="hud-top">
+          <div class="hud-left">
+            <div class="health"><div id="health-fill" class="health-fill"></div><span id="health-text">100</span></div>
+            <div class="pack">
+              <span class="chip" title="Rice"><i class="dot rice"></i><b id="rice">0</b> rice</span>
+              <span class="chip" title="Iron scrap"><i class="dot iron"></i><b id="iron">0</b> iron</span>
+              <span class="chip" title="Forge level"><i class="dot forge"></i>forge <b id="forge-level">0</b></span>
+              <span class="chip" title="Hornbill bond"><i class="dot bond"></i>bond <b id="bond">0</b></span>
+            </div>
+          </div>
+          <div class="hud-center">
+            <div id="wave-title" class="wave-title">Wave 1</div>
+            <div id="wave-sub" class="wave-sub">3 crawlers left</div>
+          </div>
+          <div class="hud-right">
+            <button id="btn-pause" class="icon-btn" aria-label="Pause">II</button>
+          </div>
+        </div>
+        <div id="fps" class="fps">-- fps</div>
+        <div id="toast" class="toast"></div>
+      </div>
+
+      <!-- Touch controls -->
+      <div id="controls" class="controls hidden">
+        <div id="stick-zone" class="stick-zone">
+          <div id="stick-base" class="stick-base hidden"><div id="stick-knob" class="stick-knob"></div></div>
+        </div>
+        <div id="swipe-zone" class="swipe-zone"></div>
+        <div class="buttons">
+          <button id="btn-interact" class="btn btn-interact hidden">Pay</button>
+          <button id="btn-power" class="btn btn-power" aria-label="Hornbill sight">
+            <svg viewBox="0 0 100 100" class="ring" aria-hidden="true">
+              <circle cx="50" cy="50" r="44" class="ring-track" />
+              <circle id="debt-ring" cx="50" cy="50" r="44" class="ring-fill" />
+            </svg>
+            <span class="btn-label">Sight</span>
+            <span id="debt-text" class="btn-sub">0</span>
+          </button>
+          <button id="btn-arrow" class="btn btn-arrow" aria-label="Switch arrow"><span id="arrow-kind">Iron</span><span id="arrow-count" class="btn-sub">∞</span></button>
+          <button id="btn-bow" class="btn btn-bow" aria-label="Bow (hold)">Bow</button>
+          <button id="btn-dodge" class="btn btn-dodge" aria-label="Dodge">Roll</button>
+          <button id="btn-attack" class="btn btn-attack" aria-label="Cutlass">Cut</button>
+        </div>
+      </div>
+
+      <!-- Start -->
+      <div id="screen-start" class="screen">
+        <div class="panel">
+          <p class="eyebrow">Gray-box prototype · v0.1</p>
+          <h1>Behind the Sky</h1>
+          <p class="lead">Rattan crawlers rise from the vines and grow back unless burned. The Hornbill lends you its sight. Every gift is a loan, paid at the crossroads.</p>
+          <ul class="howto">
+            <li><b>Cut</b> them down, then a <b>fire arrow</b> burns them for good. Light fire arrows at the brazier.</li>
+            <li><b>Sight</b> slows time and shows hidden crawlers, but adds debt. At 100 the dark closes in.</li>
+            <li>Pay at the <b>crossroads</b> with rice or iron. Forge better iron at the <b>forge</b> to Sii's drum.</li>
+          </ul>
+          <button id="btn-start" class="primary">Tap to play</button>
+          <p class="keys">Keyboard: WASD move · J cut · K hold bow · Space roll · F sight · Q arrow · E pay/forge · P pause</p>
+        </div>
+      </div>
+
+      <!-- Pause -->
+      <div id="screen-pause" class="screen hidden">
+        <div class="panel">
+          <h2>Paused</h2>
+          <div id="stats" class="stats"></div>
+          <div class="row">
+            <button id="btn-resume" class="primary">Resume</button>
+            <button id="btn-copy" class="secondary">Copy playtest stats</button>
+          </div>
+          <label class="toggle"><input type="checkbox" id="opt-fps" checked /> Show frame rate</label>
+        </div>
+      </div>
+
+      <!-- Death -->
+      <div id="screen-dead" class="screen hidden">
+        <div class="panel">
+          <h2>The forest took you</h2>
+          <p id="dead-summary" class="lead"></p>
+          <button id="btn-again" class="primary">Another round</button>
+        </div>
+      </div>
+
+      <!-- Crossroads -->
+      <div id="screen-crossroads" class="screen hidden">
+        <div class="panel">
+          <p class="eyebrow">The crossroads</p>
+          <h2>Pay the Hornbill</h2>
+          <p class="lead">You owe <b id="cr-debt">0</b>. Each offering clears 50.</p>
+          <div class="row">
+            <button id="btn-pay-rice" class="primary">Offer 3 rice</button>
+            <button id="btn-pay-iron" class="primary">Offer 2 iron</button>
+          </div>
+          <p id="cr-note" class="note"></p>
+          <button id="btn-cr-close" class="secondary">Walk on</button>
+        </div>
+      </div>
+
+      <!-- Forge -->
+      <div id="screen-forge" class="screen hidden">
+        <div class="panel forge-panel">
+          <p class="eyebrow">The forge</p>
+          <h2 id="forge-title">Forge better iron</h2>
+          <div id="forge-intro">
+            <p class="lead">Sii beats the slit-drum. Strike when each beat reaches the ring. Costs 3 iron. Forge level <b id="fg-level">0</b> of 5.</p>
+            <div class="row">
+              <button id="btn-forge-go" class="primary">Strike the iron</button>
+              <button id="btn-forge-close" class="secondary">Not now</button>
+            </div>
+            <p id="fg-note" class="note"></p>
+          </div>
+          <div id="forge-play" class="hidden">
+            <div id="lane" class="lane"><div class="hit-ring"></div><div id="notes"></div></div>
+            <div class="forge-readout"><span id="fg-judge">Ready</span><span id="fg-streak"></span><span id="fg-time"></span></div>
+            <button id="btn-strike" class="strike">Strike</button>
+          </div>
+          <div id="forge-result" class="hidden">
+            <p id="fg-result" class="lead"></p>
+            <button id="btn-forge-done" class="primary">Back to the clearing</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="screen-rotate" class="screen rotate hidden">
+        <div class="panel"><h2>Turn your phone sideways</h2><p class="lead">The game is played in landscape with two thumbs.</p></div>
+      </div>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
