@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/areas/gbelewala.gd" id="1_area"]
+
+[node name="Gbelewala" type="Node3D"]
+script = ExtResource("1_area")
+area_name = "Gbelewala"
+subtitle = "Morning. The seed-rice store stands open."
+arrive = "Morning in Gbelewala. Something has been at the seed-rice store."
+mood = "morning"
+radius = 30.0

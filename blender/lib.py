@@ -20,7 +20,8 @@ import bmesh
 from mathutils import Euler, Matrix, Quaternion, Vector
 
 ROOT = Path(__file__).resolve().parent.parent
-MODELS_OUT = ROOT / "public" / "models"
+# BTS_MODELS_OUT sends the exports elsewhere (the Godot project takes full-precision copies)
+MODELS_OUT = Path(os.environ.get("BTS_MODELS_OUT", ROOT / "public" / "models"))
 PREVIEWS_OUT = ROOT / "blender" / "previews"
 
 
