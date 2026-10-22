@@ -26,6 +26,14 @@ CLIPS = {
     "Climb": ("013/13_34.bvh", (200, 520), (0.9, 2.2), True),   # the hips rise steadily: on the ladder
 }
 OUT = HERE / "korto_anims.blend"
+# Korto's posture on top of the captured motion (degrees): chest up, chin level, shoulders open.
+# Idle gets it all (the actor stood casually and looked aside); Walk half; Run the chin only;
+# Climb keeps its natural lean into the wall.
+POSTURE = {
+    "Idle": {"chest": 4, "chin": 3, "shoulders_back": 7, "shoulders_up": 3, "face_front": 0.8},
+    "Walk": {"chest": 2, "chin": 1, "shoulders_back": 4, "shoulders_up": 2},
+    "Run": {"chin": 2},
+}
 
 
 def main(only=None):
@@ -55,6 +63,8 @@ def main(only=None):
             rig.animation_data.action = None
             bpy.data.actions.remove(act)
         RT.relax_hands(rig, act)
+        if name in POSTURE:
+            RT.correct_posture(rig, act, **POSTURE[name])
         print(f"{name}: frames {a}-{b} of {a0}-{a1} -> {int(act.frame_range[1])} frames at 30 fps")
         bpy.data.objects.remove(src)
     rig.animation_data.action = None

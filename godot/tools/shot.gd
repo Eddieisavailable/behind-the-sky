@@ -18,6 +18,14 @@ func _initialize():
 	if args.has("clip") and "anim" in scene and scene.anim:
 		scene.anim.play(args.clip)
 		scene._clip = scene._clips.find(args.clip)
+		if args.has("t"):   # hold at this fraction of the clip
+			scene.anim.seek(float(args.t) * scene.anim.current_animation_length, true)
+			scene.anim.pause()
+	if args.get("rest", "") == "1" and "anim" in scene and scene.anim:   # no animation: the bind pose
+		scene.anim.stop()
+		var sk: Skeleton3D = scene.find_child("Skeleton3D", true, false)
+		if sk:
+			sk.reset_bone_poses()
 	if args.get("view", "") == "face":
 		scene.view_face()
 	# look-dev camera overrides: focus (height looked at), dist, yaw (radians), pitch

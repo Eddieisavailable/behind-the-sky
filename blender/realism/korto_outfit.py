@@ -9,6 +9,7 @@ import bpy
 import mathutils
 
 import costume as C
+import human_lib as H
 
 V = mathutils.Vector
 
@@ -69,9 +70,12 @@ def dress(human, rig, eye_z, eye_front):
     def top_keep(p, n):
         if p.z < waist_z - 0.06 or p.z > clav_z + 0.03:
             return False
-        if abs(p.x - cx) > arm_x - 0.015:              # armholes
+        # armholes: an oval in the front view, from the strap at the shoulder down past the armpit
+        # (two stacked rectangles cut it square before)
+        ox, oz = arm_x + 0.01, clav_z - 0.02
+        if ((abs(p.x - cx) - ox) / 0.075) ** 2 + ((p.z - oz) / 0.13) ** 2 < 1.0:
             return False
-        if p.z > clav_z - 0.11 and abs(p.x - cx) > arm_x - 0.06 and p.z > chest_z:
+        if abs(p.x - cx) > arm_x + 0.005:              # the arm itself
             return False
         front = p.y < cy
         neck = clav_z - 0.005 - (0.075 * max(0.0, 1 - abs(p.x - cx) / 0.1) if front else 0.0)
@@ -90,7 +94,7 @@ def dress(human, rig, eye_z, eye_front):
 
     # ---------------- wrapper: draped by cloth simulation, wrapped once and a bit, open at the left hip
     top_z = hip_z + 0.045
-    bot_z = knee_z - 0.09
+    bot_z = knee_z - 0.06            # just below the knee: lower, the calf caught the hem when the knee bent
     ring = [p for p in B.ring(top_z, 0.012) if abs(p.x - cx) < 0.2]     # not her hands, which hang here
     r_top = max(math.hypot(p.x - cx, p.y - cy) for p in ring) + 0.012
     made["wrapper"] = wrapper(B, mats["wrapper"], (cx, cy), top_z, bot_z, r_top)
@@ -120,6 +124,19 @@ def dress(human, rig, eye_z, eye_front):
         return 0.012 + 0.045 * crown + 0.04 * crown * back + 0.012 * back
     # the cloth goes round the head several times, rising toward the back: each turn leaves a ridge
     head_c = V((0, eye_front + 0.085, eye_z))
+    def layer_edge(z, ang):
+        """Two turns of cloth cross in a V over the forehead and run back round the sides. Above each
+        turn's lower edge the cloth stands out by one layer, a soft step a few millimetres high:
+        overlapping layers are what make it read as wrapped cloth rather than a cap."""
+        lift = 0.0
+        for sign in (1, -1):
+            line = eye_z + 0.062 + sign * 0.03 * (ang / math.radians(150)) + 0.012 * (abs(ang) / math.radians(150)) ** 2
+            if abs(ang) > math.radians(160):
+                continue
+            d = z - line                                     # above the edge: on the upper layer
+            if d > 0:
+                lift += 0.0055 * min(1.0, d / 0.004) * max(0.0, 1.0 - d / 0.05)
+        return lift
     def wraps(p, n):
         rel = p - head_c
         ang = math.atan2(rel.x, -rel.y)
@@ -130,14 +147,27 @@ def dress(human, rig, eye_z, eye_front):
         front = max(0.0, math.cos(ang)) ** 2
         r1 = (0.5 + 0.5 * math.sin(k1 * 2 * math.pi / 0.034)) ** 3
         r2 = (0.5 + 0.5 * math.sin(k2 * 2 * math.pi / 0.034)) ** 3
-        ridge = 0.009 * (r1 * (0.5 + 0.5 * front) + r2 * front * 0.8)
-        return n * ridge
+        ridge = 0.004 * (r1 * (0.5 + 0.5 * front) + r2 * front * 0.8)     # small creases between layers
+        return n * (ridge + layer_edge(p.z, ang))
     tie = C.shell(B, "KortoHeadTie", tie_keep, tie_off, 0.002, mats["headtie"], smooth=2, extra=wraps)
     edge_z = lambda ang: eye_z + tie_line(ang) + 0.004
     hem_loop = clean_edge(tie, head_c, edge_z)
     folds(tie, 0.003, 60.0)
     made["headtie"] = tie
     made["hem"] = hem(hem_loop, mats["headtie"], "KortoTieHem", 0.0055)
+    # the turns of cloth, as real bands laid over the base one on top of another: a low band round
+    # the head, then two crossing in a V over the forehead. Each stands a few millimetres off the
+    # one below, puffs a little across its width and rolls at its edges, so the layers cast shadows
+    # and the tie reads as wrapped cloth rather than a cap. Their ends tuck under the knot.
+    span = math.radians(150)
+    bands = [
+        # (name, centre height above the eyes at angle a, width, layer)
+        ("KortoTieBand0", lambda a: 0.052 + 0.006 * (abs(a) / span) - 0.01 * (abs(a) / span) ** 2, 0.042, 1),
+        ("KortoTieBand1", lambda a: 0.083 + 0.03 * (a / span) + 0.012 * (abs(a) / span) ** 2, 0.05, 2),
+        ("KortoTieBand2", lambda a: 0.083 - 0.03 * (a / span) + 0.012 * (abs(a) / span) ** 2, 0.05, 3),
+    ]
+    for name, centre, width, layer in bands:
+        made[name] = tie_band(tie, head_c, eye_z, name, centre, width, layer, span, mats["headtie"])
     made["knot"] = knot(mats["headtie"], V((0, eye_front + 0.2, eye_z + 0.13)))
 
     # ---------------- bracer on the left forearm (her bow arm)
@@ -182,7 +212,7 @@ def wrapper(B, material, center, top_z, bot_z, r_top, cols=96, rows=30):
         row = []
         for c in range(cols):
             a = start + turn * c / (cols - 1)
-            rad = (r_top + 0.012 * (c / (cols - 1))) * (1.0 + 0.1 * t)   # hangs nearly straight; the legs push it out
+            rad = (r_top + 0.012 * (c / (cols - 1))) * (1.0 + 0.16 * t)  # a little flare: room for a striding leg
             # gathered at the waist into soft pleats that open toward the hem, pulling toward the knot
             pleat = 0.012 * (0.4 + t) * math.sin(13 * a + 2.5 * t + 0.8 * math.sin(3 * a))
             rad += pleat
@@ -210,6 +240,14 @@ def wrapper(B, material, center, top_z, bot_z, r_top, cols=96, rows=30):
     pin = obj.vertex_groups.new(name="pin")
     pin.add([i for i in range(cols * 2)], 1.0, "REPLACE")
     C.drape(obj, B.human, "pin", frames=50)
+    # ease: the drape settles snug against her outer thighs, so any leg movement pushed through.
+    # Give the cloth room below the hips, as a wrap skirt has (more toward the hem).
+    for v in obj.data.vertices:          # drape() replaced the mesh
+        t = max(0.0, min(1.0, (top_z - v.co.z) / (top_z - bot_z)))
+        k = max(0.0, min(1.0, (t - 0.08) / 0.3))
+        d = V((v.co.x - cx, v.co.y - cy, 0.0))
+        if d.length > 1e-6:
+            v.co += d.normalized() * (0.016 * k + 0.008 * t)
     sol = obj.modifiers.new("Thickness", "SOLIDIFY")
     sol.thickness = 0.002
     sol.offset = 1.0
@@ -279,7 +317,7 @@ def clean_edge(obj, center, edge_z, iterations=6, step_deg=4):
         k = int(round(ang_of(v.co) / step_deg)) % (360 // step_deg)
         bins.setdefault(k, []).append(math.hypot(rel.x, rel.y))
     n = 360 // step_deg
-    radius = [sum(bins[k]) / len(bins[k]) if k in bins else None for k in range(n)]
+    radius = [sorted(bins[k])[len(bins[k]) // 2] if k in bins else None for k in range(n)]
     known = [k for k in range(n) if radius[k] is not None]
     for k in range(n):                 # fill gaps from the nearest known angles
         if radius[k] is None:
@@ -287,6 +325,19 @@ def clean_edge(obj, center, edge_z, iterations=6, step_deg=4):
             radius[k] = radius[nearest]
     for _ in range(3):
         radius = [(radius[k - 1] + 2 * radius[k] + radius[(k + 1) % n]) / 4 for k in range(n)]
+    # near the edge, nothing stands further out than the edge (+1 cm): cloth taken over the top of
+    # an ear and pushed off along the ear's surface made a fin sticking out beside her head
+    for v in bm.verts:
+        rel = v.co - center
+        a_deg = ang_of(v.co)
+        if v.co.z > edge_z(abs(a_deg)) + 0.035:
+            continue
+        k = int(round(a_deg / step_deg)) % n
+        r = math.hypot(rel.x, rel.y)
+        lim = radius[k] + 0.01
+        if r > lim:
+            v.co.x = center.x + rel.x * lim / r
+            v.co.y = center.y + rel.y * lim / r
     loop = []
     for k in range(n):
         a = math.radians(k * step_deg)
@@ -298,7 +349,62 @@ def clean_edge(obj, center, edge_z, iterations=6, step_deg=4):
     return loop
 
 
-def hem(points, material, name, radius):
+def tie_band(tie, head_c, eye_z, name, centre, width, layer, span, material, cols=72, rows=7):
+    """One band of a head tie laid over the tie's surface: from -span to +span round the head
+    (0 = front), centred at eye_z + centre(angle), `width` tall, `layer` layers out."""
+    bm = bmesh.new()
+    uv_rows = []
+    grid = []
+    for c in range(cols):
+        a = -span + 2 * span * c / (cols - 1)
+        d = V((math.sin(a), -math.cos(a), 0))
+        # taper the ends, where they tuck under the knot
+        end = min(1.0, (span - abs(a)) / math.radians(25))
+        w = width * (0.45 + 0.55 * end)
+        row = []
+        for r in range(rows):
+            sv = r / (rows - 1)                          # 0 bottom edge .. 1 top edge
+            z = eye_z + centre(a) + (sv - 0.5) * w
+            origin = V((head_c.x, head_c.y, z)) + d * 0.25
+            hit, nrm = H.surface_point(tie, origin, -d, 0.3)
+            if hit is None:
+                hit, nrm = V((head_c.x, head_c.y, z)) + d * 0.1, d
+            puff = 0.0035 * math.sin(math.pi * sv) + 0.0022 * (1 - abs(2 * sv - 1)) ** 8   # body and rolled edges
+            lip = 0.002 * (max(0.0, 1 - sv / 0.12) + max(0.0, 1 - (1 - sv) / 0.12))
+            row.append(bm.verts.new(hit + nrm * (0.0035 * layer + puff * end + lip)))
+        grid.append(row)
+    faces = []
+    for c in range(cols - 1):
+        for r in range(rows - 1):
+            faces.append(bm.faces.new((grid[c][r], grid[c + 1][r], grid[c + 1][r + 1], grid[c][r + 1])))
+    uv = bm.loops.layers.uv.new("UVMap")
+    arc = 0.09 * 2 * span                             # about the band's length in metres
+    for f in faces:
+        for loop in f.loops:
+            for c, row in enumerate(grid):
+                if loop.vert in row:
+                    r = row.index(loop.vert)
+                    loop[uv].uv = (arc * c / (cols - 1), width * r / (rows - 1))
+                    break
+    bm.normal_update()
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    obj = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(obj)
+    me.materials.append(material)
+    for p in me.polygons:
+        p.use_smooth = True
+    sol = obj.modifiers.new("Thickness", "SOLIDIFY")
+    sol.thickness = 0.0015
+    sol.offset = -1.0
+    sub = obj.modifiers.new("Smooth", "SUBSURF")
+    sub.levels = sub.render_levels = 1
+    folds(obj, 0.0015, 90.0)
+    return obj
+
+
+def hem(points, material, name, radius, cyclic=True):
     """A rolled hem along a garment edge: a closed tube through `points`."""
     cu = bpy.data.curves.new(name, "CURVE")
     cu.dimensions = "3D"
@@ -308,7 +414,7 @@ def hem(points, material, name, radius):
     sp.points.add(len(points) - 1)
     for p, pt in zip(sp.points, points):
         p.co = (pt.x, pt.y, pt.z, 1.0)
-    sp.use_cyclic_u = True
+    sp.use_cyclic_u = cyclic
     obj = bpy.data.objects.new(name, cu)
     bpy.context.scene.collection.objects.link(obj)
     cu.materials.append(material)
@@ -326,16 +432,21 @@ def knot(material, at):
     """The head tie's knot: two bunched lobes and two short tucked ends."""
     me = bpy.data.meshes.new("KortoKnot")
     bm = bmesh.new()
-    for dx, s in ((-0.022, 1.0), (0.024, 0.85)):
-        ret = bmesh.ops.create_icosphere(bm, subdivisions=3, radius=0.034 * s,
-                                         matrix=mathutils.Matrix.Translation(at + V((dx, 0.005, 0.0))))
-        rnd = random.Random(int(dx * 1000))
+    # one bunched knot, wider than tall, pressed flat against the head (two round lobes read as a bun)
+    ret = bmesh.ops.create_icosphere(bm, subdivisions=3, radius=0.032, matrix=mathutils.Matrix.Translation(at))
+    rnd = random.Random(7)
+    for v in ret["verts"]:
+        q = v.co - at
+        v.co = at + V((q.x * 1.35, q.y * 0.6, q.z * 0.85)) * (0.94 + 0.1 * rnd.random())
+    # two ends hanging from it, tapering and turned slightly apart
+    for side in (-1, 1):
+        ret = bmesh.ops.create_grid(bm, x_segments=3, y_segments=6, size=0.5)
         for v in ret["verts"]:
-            v.co = at + V((dx, 0.005, 0)) + (v.co - at - V((dx, 0.005, 0))) * V((1.0, 0.75, 0.8)) * (0.92 + 0.12 * rnd.random())
-    for side in (-1, 1):                         # ends tucked down the back of the tie
-        ret = bmesh.ops.create_cube(bm, size=1.0)
-        for v in ret["verts"]:
-            v.co = at + V((side * 0.012, 0.02, -0.05)) + V((v.co.x * 0.035, v.co.y * 0.006, v.co.z * 0.06))
+            u, w = v.co.x + 0.5, v.co.y + 0.5            # 0..1 across, 0..1 down
+            width = 0.03 * (1 - 0.4 * w)
+            x = side * (0.01 + 0.008 * w) + (u - 0.5) * width
+            v.co = at + V((x, 0.012 + 0.004 * w * w - 0.02 * w, -0.01 - 0.06 * w))   # lies back against the head
+        bmesh.ops.solidify(bm, geom=list({f for v in ret["verts"] for f in v.link_faces}), thickness=0.002)
     bm.to_mesh(me)
     bm.free()
     obj = bpy.data.objects.new("KortoKnot", me)

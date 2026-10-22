@@ -346,3 +346,49 @@ def relax_hands(rig, action):
                 for f in (a0, a1):
                     pb.keyframe_insert("rotation_quaternion", frame=f)
     ad.action = None
+
+
+def _turn_about_head(pb, axis, deg):
+    """Turn a posed bone (armature space) about `axis` through its own head."""
+    m = pb.matrix.copy()
+    head = m.translation.copy()
+    r = Q(axis, math.radians(deg)).to_matrix().to_4x4()
+    t = mathutils.Matrix.Translation(head) @ r @ mathutils.Matrix.Translation(-head)
+    pb.matrix = t @ m
+
+
+def correct_posture(rig, action, chest=0.0, chin=0.0, shoulders_back=0.0, shoulders_up=0.0, face_front=0.0):
+    """Stand her up straighter on top of captured motion (degrees; 0 = leave as captured).
+    chest: lean the upper spine back · chin: lift the head · shoulders_back / shoulders_up: open and
+    lift the shoulders · face_front: 0..1, how much of the head's sideways look to take out.
+    The capture actor stood casually, which reads as a slouch on Korto. Clips face front (-Y), so
+    leaning back is a turn about +X with a negative angle."""
+    ad = rig.animation_data
+    ad.action = action
+    ad.action_slot = action.slots[0]
+    a0, a1 = map(int, action.frame_range)
+    sc = bpy.context.scene
+    X, Y, Z = V((1, 0, 0)), V((0, 1, 0)), V((0, 0, 1))
+    plan = [("spine_02", X, -chest * 0.4), ("spine_03", X, -chest * 0.6),
+            ("neck_01", X, -chin * 0.4), ("head", X, -chin * 0.6),
+            ("clavicle_l", Z, shoulders_back), ("clavicle_r", Z, -shoulders_back),
+            ("clavicle_l", Y, -shoulders_up), ("clavicle_r", Y, shoulders_up)]
+    for f in range(a0, a1 + 1):
+        sc.frame_set(f)
+        for name, axis, deg in plan:
+            if deg:
+                bpy.context.view_layer.update()
+                _turn_about_head(rig.pose.bones[name], axis, deg)
+        if face_front:
+            bpy.context.view_layer.update()
+            chest_x = rig.pose.bones["spine_03"].matrix.to_3x3() @ X
+            head_x = rig.pose.bones["head"].matrix.to_3x3() @ X
+            yaw = math.atan2(chest_x.y, chest_x.x) - math.atan2(head_x.y, head_x.x)
+            yaw = math.atan2(math.sin(yaw), math.cos(yaw))
+            _turn_about_head(rig.pose.bones["neck_01"], Z, math.degrees(yaw) * face_front * 0.5)
+            bpy.context.view_layer.update()
+            _turn_about_head(rig.pose.bones["head"], Z, math.degrees(yaw) * face_front * 0.5)
+        bpy.context.view_layer.update()
+        for name in ("spine_02", "spine_03", "neck_01", "head", "clavicle_l", "clavicle_r"):
+            rig.pose.bones[name].keyframe_insert("rotation_quaternion", frame=f)
+    ad.action = None

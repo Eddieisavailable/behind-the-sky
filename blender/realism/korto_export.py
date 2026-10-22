@@ -2,6 +2,7 @@
 
 Run:  blender-venv/bin/python blender/realism/korto_export.py
 """
+import math
 import sys
 from pathlib import Path
 
@@ -10,6 +11,7 @@ sys.path.insert(0, str(HERE))
 sys.argv = [sys.argv[0], "--no-preview"]
 
 import bpy  # noqa: E402
+import mathutils  # noqa: E402
 
 import export_game as E  # noqa: E402
 import korto_real as K  # noqa: E402
@@ -78,6 +80,122 @@ def korto_eyes(src_png, out_png):
     Image.fromarray((a * 255).astype(np.uint8), "RGBA").save(out_png)
 
 
+def add_skirt_bones(rig):
+    """Two helper bones at the hips that the wrapper follows. Each copies its thigh's swing but not
+    its twist (a skirt doesn't turn when the leg rolls inward), keyed per clip by skirt_keys()."""
+    import bpy
+    bpy.context.view_layer.objects.active = rig
+    for o in bpy.context.scene.objects:
+        o.select_set(o is rig)
+    bpy.ops.object.mode_set(mode="EDIT")
+    eb = rig.data.edit_bones
+    for side in ("l", "r"):
+        t = eb[f"thigh_{side}"]
+        b = eb.new(f"skirt_{side}")
+        b.head, b.tail, b.roll = t.head.copy(), t.tail.copy(), t.roll
+        b.parent = eb["pelvis"]
+        b.use_deform = True
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for side in ("l", "r"):
+        rig.pose.bones[f"skirt_{side}"].rotation_mode = "QUATERNION"
+
+
+def skirt_keys(rig, action, follow=1.0):
+    """Key the skirt bones for one clip: each points `follow` of the way from rest to where its thigh
+    points, with no twist."""
+    import bpy
+    ad = rig.animation_data
+    ad.action = action
+    ad.action_slot = action.slots[0]
+    a0, a1 = map(int, action.frame_range)
+    for f in range(a0, a1 + 1):
+        bpy.context.scene.frame_set(f)
+        bpy.context.view_layer.update()
+        for side in ("l", "r"):
+            thigh = rig.pose.bones[f"thigh_{side}"]
+            sk = rig.pose.bones[f"skirt_{side}"]
+            rest = rig.data.bones[f"skirt_{side}"].matrix_local
+            rest_dir = (rest.to_3x3() @ mathutils.Vector((0, 1, 0))).normalized()
+            now_dir = (thigh.matrix.to_3x3() @ mathutils.Vector((0, 1, 0))).normalized()
+            swing = rest_dir.rotation_difference(now_dir)
+            swing = mathutils.Quaternion().slerp(swing, follow)
+            m = swing.to_matrix().to_4x4() @ rest.to_3x3().to_4x4()
+            m.translation = thigh.matrix.translation
+            sk.matrix = m
+            bpy.context.view_layer.update()
+            sk.keyframe_insert("rotation_quaternion", frame=f)
+    ad.action = None
+
+
+def skirt_weights(obj, rig, reach=1.0, blend=0.07, hug=(0.12, 0.55)):
+    """Weights for a wrap skirt, replacing the nearest-body weights bind() gave it.
+    - Near the waist the cloth hugs her hips, so it keeps the body's own weights there (hip skin moves
+      with the thighs; following only the pelvis let her hips push through it). Thigh and leg weights
+      go to the skirt bones instead, so the cloth swings with the legs but never twists with them.
+    - Lower down the cloth hangs free: each side follows its own skirt bone (up to `reach` at the hem),
+      blended smoothly across the front and back over +-`blend` metres. Nearest-body weights split the
+      front hard between the legs, and a striding knee pushed through the seam.
+    The change from hugging to hanging runs between `hug` fractions of the way down."""
+    bones = rig.data.bones
+    pelvis = bones["pelvis"].head_local
+    left_x = bones["thigh_l"].head_local.x - pelvis.x
+    zs = [v.co.z for v in obj.data.vertices]
+    top, bot = max(zs), min(zs)
+    to_skirt = {}
+    for side in ("l", "r"):
+        for b in ("thigh", "calf", "foot", "ball", "thigh_twist_01", "calf_twist_01"):
+            to_skirt[f"{b}_{side}"] = f"skirt_{side}"
+    names = {g.index: g.name for g in obj.vertex_groups}
+    body = []
+    for v in obj.data.vertices:
+        mix = {}
+        for g in v.groups:
+            n = to_skirt.get(names[g.group], names[g.group])
+            mix[n] = mix.get(n, 0.0) + g.weight
+        body.append(mix)
+    for vg in list(obj.vertex_groups):
+        obj.vertex_groups.remove(vg)
+    groups = {}
+    def group(n):
+        if n not in groups:
+            groups[n] = obj.vertex_groups.new(name=n)
+        return groups[n]
+    h0, h1 = hug
+    for v, mix in zip(obj.data.vertices, body):
+        t = max(0.0, min(1.0, (top - v.co.z) / max(1e-4, top - bot)))
+        k = max(0.0, min(1.0, (t - h0) / (h1 - h0)))
+        k = k * k * (3 - 2 * k)                               # 0: hug the body, 1: hang from the skirt bones
+        lt = max(0.0, min(1.0, (t - 0.05) / 0.45))          # by mid-thigh the cloth moves with the leg
+        legs = reach * (lt * lt * (3 - 2 * lt))
+        side = (v.co.x - pelvis.x) * (1 if left_x > 0 else -1)
+        u = max(0.0, min(1.0, 0.5 + side / (2 * blend)))
+        u = u * u * (3 - 2 * u)
+        hang = {"pelvis": 1.0 - legs, "skirt_l": legs * u, "skirt_r": legs * (1 - u)}
+        # the back of the hem rides a little on the calves, so a bent knee lifts it instead of
+        # pushing through it (running)
+        ang = abs(math.degrees(math.atan2(v.co.x - pelvis.x, -(v.co.y - pelvis.y))))
+        back = max(0.0, min(1.0, (ang - 95.0) / 45.0))
+        low = max(0.0, min(1.0, (t - 0.65) / 0.35))
+        c = 0.45 * back * low * low
+        if c > 0:
+            for side, share in (("l", u), ("r", 1 - u)):
+                take = c * share
+                hang[f"skirt_{side}"] -= take * legs
+                hang[f"calf_{side}"] = hang.get(f"calf_{side}", 0.0) + take * legs
+        final = {}
+        total_body = sum(mix.values()) or 1.0
+        for n, w in mix.items():
+            final[n] = final.get(n, 0.0) + (1 - k) * w / total_body
+        for n, w in hang.items():
+            final[n] = final.get(n, 0.0) + k * w
+        # keep the four strongest (what the game engine skins with), normalised
+        top4 = sorted(final.items(), key=lambda x: -x[1])[:4]
+        tot = sum(w for _, w in top4) or 1.0
+        for n, w in top4:
+            if w > 1e-4:
+                group(n).add([v.index], w / tot, "REPLACE")
+
+
 def add_animations(rig, blend):
     """Bring the retargeted clips (korto_anims.py) in and put each on its own NLA track, so the glTF
     exporter writes every clip as an animation."""
@@ -92,6 +210,7 @@ def add_animations(rig, blend):
     names = []
     for act in dst.actions:
         print(f"  {act.name}: facing {RT.facing_offset(rig, act):+.1f} degrees off front")
+        skirt_keys(rig, act)
         track = rig.animation_data.nla_tracks.new()
         track.name = act.name
         strip = track.strips.new(act.name, int(act.frame_range[0]), act)
@@ -125,7 +244,7 @@ def main():
             E.freeze(o)
 
     # ---- triangle budget (the brief: 100k for the whole character on PC High)
-    BUDGET = {"KortoWrapper": 14000, "KortoTop": 9000, "KortoHeadTie": 7000, "KortoKnot": 1500, "KortoShorts": 3000,
+    BUDGET = {"KortoWrapper": 14000, "KortoTop": 9000, "KortoHeadTie": 6000, "KortoTieBand0": 2000, "KortoTieBand1": 2000, "KortoTieBand2": 2000, "KortoKnot": 1500, "KortoShorts": 3000,
               "KortoBelt": 1200, "KortoBracer": 1500, "KortoStraps": 800, "KortoScalp": 3000, "KortoBeads": 5000,
               "KortoBangle": 800}
     for name, target in BUDGET.items():
@@ -156,7 +275,7 @@ def main():
     scalp.data.materials.append(image_material("KortoCornrows", rows["color"], rows["rough"], rows["normal"]))
 
     # ---- cloth: tiles, and garment UVs rescaled from metres to tiles
-    cloth_objs = {"Wrapper": ["KortoWrapper"], "Top": ["KortoTop"], "HeadTie": ["KortoHeadTie", "KortoKnot", "KortoTieHem"]}
+    cloth_objs = {"Wrapper": ["KortoWrapper"], "Top": ["KortoTop"], "HeadTie": ["KortoHeadTie", "KortoKnot", "KortoTieHem", "KortoTieBand0", "KortoTieBand1", "KortoTieBand2"]}
     for mname, (pu, pv) in TILES.items():
         mat = bpy.data.materials[mname]
         tile = E.bake_tile(mat, pu, pv, TEX, f"korto_{mname.lower()}", 1024)
@@ -211,7 +330,7 @@ def main():
         if o.type != "MESH" or o is human:
             continue
         name = o.name
-        if name.startswith(("KortoBrow", "KortoLashes", "KortoScalp", "KortoHeadTie", "KortoKnot", "KortoTieHem")) or name == "KortoEyes":
+        if name.startswith(("KortoBrow", "KortoLashes", "KortoScalp", "KortoHeadTie", "KortoKnot", "KortoTieHem", "KortoTieBand")) or name == "KortoEyes":
             E.bind(o, human, rig, only="head")
         elif name == "KortoBeads":
             E.bind(o, human, rig, only="spine_03")
@@ -222,6 +341,9 @@ def main():
         else:
             E.bind(o, human, rig)
 
+    add_skirt_bones(rig)
+    skirt_weights(bpy.data.objects["KortoWrapper"], rig)
+
     clips = add_animations(rig, HERE / "korto_anims.blend")
     print("clips:", clips)
 
@@ -230,6 +352,9 @@ def main():
         if o.type == "MESH" and o.name in ("tile",):
             bpy.data.objects.remove(o)
     E.export_glb(OUT / "korto_real.glb", [rig] + meshes)
+    import os
+    if os.environ.get("KORTO_SAVE_BLEND"):          # keep the built scene for checking
+        bpy.ops.wm.save_as_mainfile(filepath=os.environ["KORTO_SAVE_BLEND"])
     tris = sum(E.triangles(o) for o in meshes)
     for o in sorted(meshes, key=E.triangles, reverse=True)[:6]:
         print(f"  {o.name}: {E.triangles(o)}")

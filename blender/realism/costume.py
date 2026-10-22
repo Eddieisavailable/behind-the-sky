@@ -95,7 +95,7 @@ def shell(body, name, keep, offset, thickness=0.0015, material=None, smooth=1, p
         sol = obj.modifiers.new("Thickness", "SOLIDIFY")
         sol.thickness = thickness
         sol.offset = 1.0
-        sol.use_even_offset = True
+        sol.use_even_offset = False   # "even" blew sharp creases out into fins (one beside her ear)
     if material:
         me.materials.append(material)
     return obj
