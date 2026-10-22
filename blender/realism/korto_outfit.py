@@ -81,9 +81,12 @@ def dress(human, rig, eye_z, eye_front):
         neck = clav_z - 0.005 - (0.075 * max(0.0, 1 - abs(p.x - cx) / 0.1) if front else 0.0)
         return p.z < neck or abs(p.x - cx) > 0.085
     def top_off(p, n):
+        # fitted: close over the stomach (hanging straight down from the bust read as a big belly)
         below = max(0.0, min(1.0, (chest_z - p.z) / 0.16))
-        return 0.006 + 0.012 * below * (1 if p.y < cy + 0.02 else 0.4)
+        back = 1.0 if p.y > cy else 0.0                 # her lower back showed through it at the dimples
+        return 0.004 + 0.003 * below + 0.004 * back * below
     made["top"] = C.shell(B, "KortoTop", top_keep, top_off, 0.0018, mats["top"])
+    bridge_dents(made["top"])
     smooth_edges(made["top"])
 
     # ---------------- under-shorts to mid-thigh
@@ -203,6 +206,24 @@ def wrapper(B, material, center, top_z, bot_z, r_top, cols=96, rows=30):
     cx, cy = center
     me = bpy.data.meshes.new("KortoWrapper")
     bm = bmesh.new()
+    # her own shape round the hips and thighs, angle by angle (0 = front): the furthest the body
+    # reaches out at that angle anywhere from the waistband to the hem. A round tube sized to her hip
+    # width stood far off her stomach and buttocks (she is shallower front to back than side to side).
+    step = 5
+    prof = [0.0] * (360 // step)
+    for p, ok in zip(B.points, B.skin):
+        if not ok or not (bot_z - 0.02 < p.z < top_z) or abs(p.x - cx) > 0.2:
+            continue
+        a_deg = math.degrees(math.atan2(p.x - cx, -(p.y - cy))) % 360
+        k = int(a_deg // step)
+        prof[k] = max(prof[k], math.hypot(p.x - cx, p.y - cy))
+    for _ in range(4):                               # smooth round the body
+        prof = [max(prof[k], (prof[k - 1] + prof[k] + prof[(k + 1) % len(prof)]) / 3) for k in range(len(prof))]
+    def body_r(a):
+        k = (math.degrees(a) % 360) / step
+        i = int(k) % len(prof)
+        f = k - int(k)
+        return prof[i] * (1 - f) + prof[(i + 1) % len(prof)] * f
     turn = 2 * math.pi + 0.95                       # once round and a bit: the end overlaps at the front-left
     start = math.radians(70)                         # the open edge sits at her left hip
     grid = []
@@ -212,7 +233,8 @@ def wrapper(B, material, center, top_z, bot_z, r_top, cols=96, rows=30):
         row = []
         for c in range(cols):
             a = start + turn * c / (cols - 1)
-            rad = (r_top + 0.012 * (c / (cols - 1))) * (1.0 + 0.16 * t)  # a little flare: room for a striding leg
+            # her shape plus a little room; the overlapping end lies a little further out
+            rad = (body_r(a) + 0.012 + 0.01 * (c / (cols - 1))) * (1.0 + 0.07 * t)  # a little flare for a striding leg
             # gathered at the waist into soft pleats that open toward the hem, pulling toward the knot
             pleat = 0.012 * (0.4 + t) * math.sin(13 * a + 2.5 * t + 0.8 * math.sin(3 * a))
             rad += pleat
@@ -247,7 +269,11 @@ def wrapper(B, material, center, top_z, bot_z, r_top, cols=96, rows=30):
         k = max(0.0, min(1.0, (t - 0.08) / 0.3))
         d = V((v.co.x - cx, v.co.y - cy, 0.0))
         if d.length > 1e-6:
-            v.co += d.normalized() * (0.016 * k + 0.008 * t)
+            side = abs(d.normalized().x)          # 1 at her sides, 0 at front and back
+            # room where the thighs push (her sides); front and back stay close, or the cloth
+            # stood off her back and made her look broad behind
+            # ...and toward the hem, all round, room for the knees and calves
+            v.co += d.normalized() * ((0.016 * k + 0.008 * t) * (0.25 + 0.75 * side) + 0.016 * t * t)
     sol = obj.modifiers.new("Thickness", "SOLIDIFY")
     sol.thickness = 0.002
     sol.offset = 1.0
@@ -265,6 +291,28 @@ def folds(obj, depth, scale):
     d.strength = depth
     d.texture_coords = "GLOBAL"
     d.mid_level = 0.5
+
+
+def bridge_dents(obj, iterations=10, rate=0.5):
+    """Untangle a garment made by offsetting the skin. Inside a hollow (the dimples of her lower
+    back) the skin's normals point toward each other, so the offset surface crosses over itself into
+    a small inside-out lens, which rendered as oval marks. Plain smoothing of the inside of the
+    garment (open edges kept) untangles the folds and lets the cloth span the hollow."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    for _ in range(iterations):
+        new = {}
+        for v in bm.verts:
+            if v.is_boundary or not v.link_edges:
+                continue
+            avg = sum((e.other_vert(v).co for e in v.link_edges), V((0, 0, 0))) / len(v.link_edges)
+            new[v] = v.co + (avg - v.co) * rate
+        for v, co in new.items():
+            v.co = co
+    bm.normal_update()
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
 
 
 def smooth_edges(obj, iterations=10):

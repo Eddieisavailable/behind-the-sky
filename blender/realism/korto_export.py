@@ -176,7 +176,7 @@ def skirt_weights(obj, rig, reach=1.0, blend=0.07, hug=(0.12, 0.55)):
         ang = abs(math.degrees(math.atan2(v.co.x - pelvis.x, -(v.co.y - pelvis.y))))
         back = max(0.0, min(1.0, (ang - 95.0) / 45.0))
         low = max(0.0, min(1.0, (t - 0.65) / 0.35))
-        c = 0.45 * back * low * low
+        c = 0.7 * back * low * low
         if c > 0:
             for side, share in (("l", u), ("r", 1 - u)):
                 take = c * share

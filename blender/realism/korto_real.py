@@ -58,6 +58,10 @@ TARGETS = [
     ("mouth-cupidsbow-incr", 0.3),
     # straight, strong brows sit slightly low
     ("eyebrows-trans-down", 0.15),
+    # body: the African phenotype at full strength gives large, high buttocks and a sway in the lower
+    # back. She is lean and athletic: smaller, firmer buttocks, less hip depth, a flat toned stomach
+    ("buttocks-volume-decr", 0.75), ("hip-scale-depth-decr", 0.45), ("pelvis-tone-incr", 0.5),
+    ("stomach-pregnant-decr", 0.9), ("stomach-tone-incr", 0.7),
 ]
 
 

@@ -109,11 +109,21 @@ def cylinder_uv(obj, center=(0, 0), unit=True):
         me.uv_layers.new(name="UVMap")
     uv = me.uv_layers.active.data
     cx, cy = center
+    # one radius per height (the average round the garment), not each vertex's own: with its own
+    # radius, every dip in the surface (the dimples of her lower back) shifted u by centimetres across
+    # the back, and the woven stripes bent into lens shapes there
+    world = [obj.matrix_world @ v.co for v in me.vertices]
+    bins = {}
+    for p in world:
+        bins.setdefault(round(p.z / 0.01), []).append(math.hypot(p.x - cx, p.y - cy))
+    ref = {k: sum(v) / len(v) for k, v in bins.items()}
+    keys = sorted(ref)
+    smooth = {k: sum(ref[j] for j in keys if abs(j - k) <= 3) / len([j for j in keys if abs(j - k) <= 3]) for k in keys}
     for poly in me.polygons:
         for li in poly.loop_indices:
-            p = obj.matrix_world @ me.vertices[me.loops[li].vertex_index].co
+            p = world[me.loops[li].vertex_index]
             ang = math.atan2(p.x - cx, -(p.y - cy))          # 0 at the front
-            r = math.hypot(p.x - cx, p.y - cy)
+            r = smooth[round(p.z / 0.01)]
             uv[li].uv = (ang * max(r, 0.08), p.z)
 
 

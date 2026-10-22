@@ -26,6 +26,22 @@ func _initialize():
 		var sk: Skeleton3D = scene.find_child("Skeleton3D", true, false)
 		if sk:
 			sk.reset_bone_poses()
+	if args.has("hide"):   # hide meshes whose names start with any of these (comma-separated)
+		for mi in scene.find_children("*", "MeshInstance3D", true, false):
+			for pre in args.hide.split(","):
+				if pre != "" and str(mi.name).begins_with(pre) and str(mi.name) != "Korto":
+					mi.visible = false
+	if args.has("nonormal"):   # debug: switch off normal maps on meshes starting with this name
+		for mi in scene.find_children("*", "MeshInstance3D", true, false):
+			if str(mi.name).begins_with(args.nonormal):
+				for i in mi.mesh.get_surface_count():
+					var m: Material = mi.mesh.surface_get_material(i).duplicate()
+					if m is StandardMaterial3D:
+						m.normal_enabled = false
+					mi.set_surface_override_material(i, m)
+	if args.get("hidebody", "") == "1":
+		for mi in scene.find_children("Korto", "MeshInstance3D", true, false):
+			mi.visible = false
 	if args.get("view", "") == "face":
 		scene.view_face()
 	# look-dev camera overrides: focus (height looked at), dist, yaw (radians), pitch
