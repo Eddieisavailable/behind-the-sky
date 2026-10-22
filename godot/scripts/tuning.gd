@@ -8,6 +8,8 @@ const HERO := { "health": 100, "speed": 6.5, "aim_speed_factor": 0.4, "radius": 
 ## The two playable heroes: same story, different starting strengths.
 const HEROES := {
 	"korto": { "name": "Korto", "health": 100, "speed": 6.5, "damage": 1.0, "scale": 1.12, "model": "res://assets/models/characters/korto.glb" },
+	# realistic Korto, in progress (blender/realism): real size, so no scale-up
+	"korto_real": { "name": "Korto", "health": 100, "speed": 6.5, "damage": 1.0, "scale": 1.0, "model": "res://assets/models/characters/korto_real/korto_real.glb" },
 	"flomo": { "name": "Flomo", "health": 130, "speed": 5.8, "damage": 1.3, "scale": 1.18, "model": "res://assets/models/characters/flomo.glb" },
 }
 

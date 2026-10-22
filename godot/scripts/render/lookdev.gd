@@ -11,7 +11,7 @@ extends Node3D
 ## Keys: 1–7 lighting · T turntable · F face · B full body · N next animation
 ##       G graphics quality · drag to orbit · right-drag to pan up/down · wheel to zoom
 
-@export_file("*.glb", "*.tscn") var model_path := "res://assets/models/characters/korto.glb"
+@export_file("*.glb", "*.tscn") var model_path := "res://assets/models/characters/korto_real/korto_real.glb"
 @export var start_light := "morning"
 
 const LIGHTS := ["studio", "morning", "day", "afternoon", "dusk", "bush", "night"]

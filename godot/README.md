@@ -15,6 +15,7 @@ Open this folder in Godot 4.7 and press **F5** (or the ▶ button). You walk Gbe
 turn on bounced light, soft sun shadows, haze and temporal anti-aliasing; Low is what phones will get.
 
 To play as Flomo, select the **Main** node in `scenes/main.tscn` and set **Hero Key** to `flomo`.
+To walk with the realistic Korto (in progress), set it to `korto_real`.
 
 ## Where things are
 
@@ -51,6 +52,13 @@ Keys: **1–7** lighting · **T** turntable · **F** face close-up · **B** full
 godot --headless --path . --script res://tests/run_tests.gd    # the rules (50 checks)
 godot --headless --path . --script res://tests/walk_test.gd    # walking the village (16 checks)
 ```
+
+## Realistic characters
+
+Built in Blender from `blender/realism/` with MPFB (MakeHuman for Blender, free CC0 output) and
+motion capture from the CMU library, then judged in the look-dev stage. Their skeleton uses the
+Unreal / MetaHuman bone names, so animation carries over if a character later becomes a MetaHuman.
+`korto_real` is the first.
 
 ## Models
 

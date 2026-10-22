@@ -9,10 +9,15 @@ func _initialize():
 	if args.has("quality"):
 		Look.quality = args.quality
 	var scene: Node = load(args.get("scene", "res://scenes/main.tscn")).instantiate()
+	if args.has("model") and "model_path" in scene:
+		scene.model_path = args.model
 	root.add_child(scene)
 	await process_frame   # let the scene's _ready run first
 	if args.has("light"):
 		scene.set_light(args.light)
+	if args.has("clip") and "anim" in scene and scene.anim:
+		scene.anim.play(args.clip)
+		scene._clip = scene._clips.find(args.clip)
 	if args.get("view", "") == "face":
 		scene.view_face()
 	var t0 := Time.get_ticks_msec()
