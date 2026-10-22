@@ -25,6 +25,10 @@ MAP = {
 }
 
 
+# cgspeed CMU BVH joints with no length of their own (the importer invents a direction for them)
+ZERO_LENGTH = {"LeftHand", "RightHand", "Spine1"}
+
+
 def import_bvh(path):
     before = set(bpy.data.objects)
     bpy.ops.import_anim.bvh(filepath=str(path), global_scale=1.0, frame_start=1, use_fps_scale=False,
@@ -79,10 +83,19 @@ def retarget(src, tgt, name, start=None, end=None, step=4, in_place=True, loop=F
     # afterwards. (Applying R to the rest too made the motion R·M·R⁻¹, which for turns about the
     # vertical cancels out: clips kept whatever way the mocap actor faced.)
     src_rest = {s: _rest_world(src, s) for s in MAP}
+    def src_rest_dir(s):
+        """A source bone's rest direction. The BVH wrists (and Spine1) are zero-length bones whose
+        direction the importer makes up; for those, use the parent's, so the hand continues the
+        forearm. Using the made-up direction bent her wrists about 90 degrees."""
+        bone = src.data.bones[s]
+        # the importer warns "zero length node found" for these and gives them a made-up tail
+        while (bone.length < 1e-4 or bone.name in ZERO_LENGTH) and bone.parent:
+            bone = bone.parent
+        return _dir(_rest_world(src, bone.name))
     ref = {}
     for s, t in MAP.items():
         trw = _rest_world(tgt, t)
-        a = _dir(trw).rotation_difference(_dir(src_rest[s]))
+        a = _dir(trw).rotation_difference(src_rest_dir(s))
         ref[t] = (a @ trw.to_quaternion())
 
     order = [b.name for b in tgt.data.bones]          # parents come before children
@@ -295,3 +308,41 @@ def facing_offset(rig, action):
         sy += math.sin(a)
     d = rest - math.atan2(sy, sx)
     return math.degrees(math.atan2(math.sin(d), math.cos(d)))
+
+
+# relaxed hand: curl per joint (degrees) for each finger; the clips don't animate fingers
+CURL = {"thumb": (0, 12, 15), "index": (14, 20, 14), "middle": (18, 26, 18), "ring": (22, 30, 20), "pinky": (26, 34, 22)}
+
+
+def relax_hands(rig, action):
+    """Key a relaxed, slightly curled hand into a clip (first and last frame). Each finger joint bends
+    toward the palm: the palm side is read from the rest pose, where the middle finger already curves
+    a little that way. Without this, fingers stay splayed flat as at rest."""
+    slot = action.slots[0]
+    ad = rig.animation_data
+    ad.action = action
+    ad.action_slot = slot
+    a0, a1 = map(int, action.frame_range)
+    for side in ("l", "r"):
+        bones = rig.data.bones
+        d1 = _dir(bones[f"middle_01_{side}"].matrix_local)
+        d3 = _dir(bones[f"middle_03_{side}"].matrix_local)
+        palm = (d3 - d1 * d3.dot(d1)).normalized()      # toward the palm, in armature space
+        for finger, angles in CURL.items():
+            for j, deg in enumerate(angles, start=1):
+                name = f"{finger}_0{j}_{side}"
+                if name not in bones or deg == 0:
+                    continue
+                m = bones[name].matrix_local.to_3x3()
+                d = (m @ V((0, 1, 0))).normalized()
+                axis_arm = d.cross(palm)
+                if axis_arm.length < 1e-6:
+                    continue
+                axis_local = (m.inverted() @ axis_arm).normalized()
+                q = Q(axis_local, math.radians(deg))
+                pb = rig.pose.bones[name]
+                pb.rotation_mode = "QUATERNION"
+                pb.rotation_quaternion = q
+                for f in (a0, a1):
+                    pb.keyframe_insert("rotation_quaternion", frame=f)
+    ad.action = None

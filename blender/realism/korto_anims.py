@@ -54,6 +54,7 @@ def main(only=None):
             fix += off
             rig.animation_data.action = None
             bpy.data.actions.remove(act)
+        RT.relax_hands(rig, act)
         print(f"{name}: frames {a}-{b} of {a0}-{a1} -> {int(act.frame_range[1])} frames at 30 fps")
         bpy.data.objects.remove(src)
     rig.animation_data.action = None

@@ -20,8 +20,8 @@ COTTON_DARK = (0.27, 0.21, 0.14)
 KOLA = (0.1, 0.035, 0.014)
 RUST = (0.3, 0.085, 0.03)
 RED_EARTH = (0.22, 0.075, 0.035)
-LEATHER = (0.12, 0.055, 0.025)
-LEATHER_DARK = (0.05, 0.022, 0.012)
+LEATHER = (0.045, 0.021, 0.01)       # dark tanned hide: the lighter tan matched her skin and read as skin
+LEATHER_DARK = (0.024, 0.012, 0.007)
 IRON = (0.32, 0.31, 0.3)
 
 
@@ -80,11 +80,13 @@ def dress(human, rig, eye_z, eye_front):
         below = max(0.0, min(1.0, (chest_z - p.z) / 0.16))
         return 0.006 + 0.012 * below * (1 if p.y < cy + 0.02 else 0.4)
     made["top"] = C.shell(B, "KortoTop", top_keep, top_off, 0.0018, mats["top"])
+    smooth_edges(made["top"])
 
     # ---------------- under-shorts to mid-thigh
     def shorts_keep(p, n):
         return (B.head("thigh_l").z - 0.2 < p.z < waist_z - 0.02) and abs(p.x - cx) < 0.24
     made["shorts"] = C.shell(B, "KortoShorts", shorts_keep, 0.003, 0.0015, mats["shorts"])
+    smooth_edges(made["shorts"])
 
     # ---------------- wrapper: draped by cloth simulation, wrapped once and a bit, open at the left hip
     top_z = hip_z + 0.045
@@ -94,7 +96,7 @@ def dress(human, rig, eye_z, eye_front):
     made["wrapper"] = wrapper(B, mats["wrapper"], (cx, cy), top_z, bot_z, r_top)
 
     # ---------------- belt over the wrapper's top edge, with an iron buckle at the front
-    made["belt"] = C.band(B, "KortoBelt", (cx, cy), top_z + 0.012, 0.052, 0.02, mats["leather"])
+    made["belt"] = C.band(B, "KortoBelt", (cx, cy), top_z + 0.012, 0.045, 0.012, mats["leather"])
     front_y = min(p.y for p in B.ring(top_z + 0.012, 0.01) if abs(p.x - cx) < 0.04) - 0.026
     made["buckle"] = buckle(mats["iron"], V((cx, front_y, top_z + 0.012)))
 
@@ -145,6 +147,7 @@ def dress(human, rig, eye_z, eye_front):
         t = (p - a).dot(axis) / axis.length_squared
         return 0.4 < t < 0.88 and (p - (a + axis * t)).length < 0.06
     made["bracer"] = C.shell(B, "KortoBracer", bracer_keep, 0.004, 0.003, mats["leather_dark"])
+    smooth_edges(made["bracer"])
 
     # ---------------- sandals: a hide sole and an ankle strap
     made["sole_l"] = C.sole(B, "KortoSoleL", 1, mats["leather_dark"], cx)
@@ -224,6 +227,26 @@ def folds(obj, depth, scale):
     d.strength = depth
     d.texture_coords = "GLOBAL"
     d.mid_level = 0.5
+
+
+def smooth_edges(obj, iterations=10):
+    """Smooth a shell garment's open edges (armholes, neckline, hems): the region test leaves them
+    saw-toothed along the body's triangles. Each edge vertex moves toward the middle of its two edge
+    neighbours, in all three directions, so the line runs clean."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    edge = {v for e in bm.edges if e.is_boundary for v in e.verts}
+    for _ in range(iterations):
+        new = {}
+        for v in edge:
+            nb = [e.other_vert(v) for e in v.link_edges if e.is_boundary]
+            if len(nb) == 2:
+                new[v] = v.co * 0.4 + (nb[0].co + nb[1].co) * 0.3
+        for v, co in new.items():
+            v.co = co
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
 
 
 def clean_edge(obj, center, edge_z, iterations=6, step_deg=4):
@@ -350,17 +373,19 @@ def beads(human, B, clav_z, cx, cy):
     bm = bmesh.new()
     ids = []
     neck = B.head("neck_01")
-    count = 46
+    count = 64
     for i in range(count):
         a = 2 * math.pi * i / count
-        drop = 0.045 * (0.5 + 0.5 * math.cos(a)) ** 2       # hangs lower at the front (a = 0)
-        z = clav_z + 0.025 - drop
+        drop = 0.05 * (0.5 + 0.5 * math.cos(a)) ** 2        # hangs lower at the front (a = 0)
+        z = clav_z + 0.035 - drop
         d = V((math.sin(a), -math.cos(a), 0))
-        p, n = H.surface_point(human, (cx + d.x * 0.3, neck.y + d.y * 0.3, z), (-d.x, -d.y, 0), 0.6)
+        # aim from just outside the neck (rays from far out hit the shoulders first at the sides)
+        reach = 0.11 + 0.05 * (0.5 + 0.5 * math.cos(a))
+        p, n = H.surface_point(human, (cx + d.x * reach, neck.y + d.y * reach, z), (-d.x, -d.y, -0.25), 0.3)
         if p is None:
             continue
-        ret = bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=6, radius=0.0042,
-                                        matrix=mathutils.Matrix.Translation(p + n * 0.005))
+        ret = bmesh.ops.create_uvsphere(bm, u_segments=8, v_segments=5, radius=0.0048,
+                                        matrix=mathutils.Matrix.Translation(p + n * 0.0055))
         ids.append((ret["verts"], i % 3))
     bm.to_mesh(me)
     bm.free()

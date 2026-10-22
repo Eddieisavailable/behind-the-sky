@@ -126,7 +126,7 @@ def main():
 
     # ---- triangle budget (the brief: 100k for the whole character on PC High)
     BUDGET = {"KortoWrapper": 14000, "KortoTop": 9000, "KortoHeadTie": 7000, "KortoKnot": 1500, "KortoShorts": 3000,
-              "KortoBelt": 1200, "KortoBracer": 1500, "KortoStraps": 800, "KortoScalp": 3000, "KortoBeads": 4000,
+              "KortoBelt": 1200, "KortoBracer": 1500, "KortoStraps": 800, "KortoScalp": 3000, "KortoBeads": 5000,
               "KortoBangle": 800}
     for name, target in BUDGET.items():
         o = bpy.data.objects.get(name)

@@ -20,6 +20,10 @@ func _initialize():
 		scene._clip = scene._clips.find(args.clip)
 	if args.get("view", "") == "face":
 		scene.view_face()
+	# look-dev camera overrides: focus (height looked at), dist, yaw (radians), pitch
+	for k in ["focus", "dist", "yaw", "pitch"]:
+		if args.has(k) and ("_" + ("focus_y" if k == "focus" else k)) in scene:
+			scene.set("_" + ("focus_y" if k == "focus" else k), float(args[k]))
 	var t0 := Time.get_ticks_msec()
 	for i in int(args.get("frames", "30")):
 		await process_frame
